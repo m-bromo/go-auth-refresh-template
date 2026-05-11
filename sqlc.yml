@@ -1,0 +1,11 @@
+version: '2'
+
+sql:
+  - schema: "internal/infra/database/schema"
+    queries: "internal/infra/database/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/infra/database/sqlc"
+        emit_interface: true
