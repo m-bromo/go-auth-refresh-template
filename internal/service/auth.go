@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
@@ -36,12 +38,12 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 
 	hashedPassword, err := secure.HashPassword(user.Password)
 	if err != nil {
-		return err
+		return fmt.Errorf("register user: %w", apierrors.NewInternalServerError(err.Error()))
 	}
 	user.Password = hashedPassword
 
 	if err := a.userRepository.Save(ctx, user); err != nil {
-		return err
+		return fmt.Errorf("register user: %w", apierrors.NewInternalServerError(err.Error()))
 	}
 
 	return nil
@@ -50,15 +52,15 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 func (a *authService) Login(ctx context.Context, user *domain.User) (*domain.User, error) {
 	existingUser, err := a.userRepository.GetByEmail(ctx, user.Email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("login: %w", apierrors.NewInternalServerError(err.Error()))
 	}
 
 	if existingUser == nil {
-		return nil, ErrUserNotRegistered
+		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrUserNotRegistered.Error()))
 	}
 
 	if !secure.CheckPassword(user.Password, existingUser.Password) {
-		return nil, ErrInvalidCredentials
+		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrInvalidCredentials.Error()))
 	}
 
 	return existingUser, nil

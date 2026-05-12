@@ -1,7 +1,6 @@
 package apierrors
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -24,22 +23,18 @@ func (r *ApiErr) Error() string {
 	return r.Message
 }
 
-func NewValidationError(err error) *ApiErr {
-	var validationErr validator.ValidationErrors
-	var causes []Causes
+func NewValidationError(validationErr validator.ValidationErrors) *ApiErr {
+	causes := make([]Causes, len(validationErr))
 
-	if errors.As(err, &validationErr) {
-		for _, err := range validationErr {
-			causes = append(causes, Causes{
-				Field:   err.Field(),
-				Message: err.Error(),
-			})
+	for i, err := range validationErr {
+		causes[i] = Causes{
+			Field:   err.Field(),
+			Message: err.Error(),
 		}
-
-		return NewBadRequestValidationError("one or more fields are invalid", causes)
 	}
 
-	return NewBadRequestError("invalid request payload")
+	return NewBadRequestValidationError("one or more fields are invalid", causes)
+
 }
 
 // 400

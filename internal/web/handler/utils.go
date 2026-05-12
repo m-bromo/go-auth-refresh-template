@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	apierrors "github.com/m-bromo/go-auth-template/internal/web/api_errors"
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 )
 
 func HandleJSON(w http.ResponseWriter, code int, body any) {
@@ -23,14 +23,15 @@ func HandleError(w http.ResponseWriter, err error) {
 	var apiErr *apierrors.ApiErr
 
 	if errors.As(err, &validationErr) {
-		apiErr = apierrors.NewValidationError(err)
+		apiErr = apierrors.NewValidationError(validationErr)
 	} else {
-		switch err {
-		default:
+		var ok bool
+		apiErr, ok = err.(*apierrors.ApiErr)
+		if !ok {
 			apiErr = apierrors.NewInternalServerError("an unexpected error has ocurred")
 		}
 	}
 
+	HandleJSON(w, apiErr.Code, apiErr)
 	slog.Error(err.Error())
-	HandleJSON(w, http.StatusInternalServerError, apiErr)
 }

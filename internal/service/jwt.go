@@ -2,10 +2,12 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/config"
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 )
 
 var (
@@ -43,19 +45,19 @@ func (s *jwtService) GenerateToken(userID uuid.UUID) (string, error) {
 func (s *jwtService) ValidateToken(tokenString string) (*jwt.RegisteredClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, ErrInvalidSigningMethod
+			return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(ErrInvalidSigningMethod.Error()))
 		}
 
 		return s.cfg.Jwt.PublicKey, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate token: %w", apierrors.NewInternalServerError(err.Error()))
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, ErrInvalidClaims
+		return nil, fmt.Errorf("validate token : %w", apierrors.NewUnauthorizedError(ErrInvalidClaims.Error()))
 	}
 
-	return claims, err
+	return claims, nil
 }
