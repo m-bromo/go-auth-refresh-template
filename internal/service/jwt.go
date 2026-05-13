@@ -31,24 +31,26 @@ func NewJwtService(cfg *config.Config) JwtService {
 }
 
 func (s *jwtService) GenerateToken(userID uuid.UUID) (string, error) {
-	token, err := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Subject: userID.String(),
 		ID:      uuid.NewString(),
-	}).SignedString(s.cfg.Jwt.PrivateKey)
+	})
+
+	tokenString, err := token.SignedString([]byte(s.cfg.Jwt.PrivateKey))
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
-	return token, nil
+	return tokenString, nil
 }
 
 func (s *jwtService) ValidateToken(tokenString string) (*jwt.RegisteredClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(ErrInvalidSigningMethod.Error()))
 		}
 
-		return s.cfg.Jwt.PublicKey, nil
+		return []byte(s.cfg.Jwt.PublicKey), nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("validate token: %w", apierrors.NewInternalServerError(err.Error()))

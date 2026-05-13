@@ -55,7 +55,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.authService.Login(r.Context(), &domain.User{
-		Email:    payload.Password,
+		Email:    payload.Email,
 		Password: payload.Password,
 	})
 	if err != nil {

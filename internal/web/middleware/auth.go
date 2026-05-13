@@ -12,7 +12,7 @@ import (
 const UserIDKey = "user_id"
 
 type AuthMiddleware interface {
-	Authenticate(next http.HandlerFunc) http.HandlerFunc
+	Authenticate(next http.Handler) http.Handler
 }
 
 type authMiddleware struct {
@@ -25,8 +25,8 @@ func NewAuthMiddleware(jwtService service.JwtService) AuthMiddleware {
 	}
 }
 
-func (s *authMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *authMiddleware) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := cookie.GetCookie(r)
 		if err != nil {
 			handler.HandleError(w, err)
@@ -43,5 +43,5 @@ func (s *authMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
-	}
+	})
 }
