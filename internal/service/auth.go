@@ -59,7 +59,7 @@ func (a *authService) Login(ctx context.Context, user *domain.User) (*domain.Use
 		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrUserNotRegistered.Error()))
 	}
 
-	if !secure.CheckPassword(user.Password, existingUser.Password) {
+	if !secure.CheckPassword(existingUser.Password, user.Password) {
 		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrInvalidCredentials.Error()))
 	}
 
