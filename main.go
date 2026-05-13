@@ -42,7 +42,7 @@ func main() {
 	srv.POST("/auth/register", authHandler.RegisterUser)
 	srv.POST("/auth/login", authHandler.Login)
 
-	srv.GET("/user/profile", userHandler.GetProfile, authMiddleware.Authenticate)
+	srv.GET("/user/{id}", userHandler.GetProfile, authMiddleware.Authenticate)
 
 	if err := srv.Run(fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)); err != nil {
 		log.Fatal(err)

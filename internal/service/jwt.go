@@ -50,10 +50,10 @@ func (s *jwtService) ValidateToken(tokenString string) (*jwt.RegisteredClaims, e
 			return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(ErrInvalidSigningMethod.Error()))
 		}
 
-		return []byte(s.cfg.Jwt.PublicKey), nil
+		return []byte(s.cfg.Jwt.PrivateKey), nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("validate token: %w", apierrors.NewInternalServerError(err.Error()))
+		return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(err.Error()))
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)

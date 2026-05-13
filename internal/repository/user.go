@@ -49,7 +49,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Use
 		ID:       user.ID,
 		Email:    user.Email,
 		Password: user.Password,
-		Username: user.Password,
+		Username: user.Username,
 	}, nil
 }
 
