@@ -12,14 +12,16 @@ import (
 )
 
 type AuthHandler struct {
-	authService service.AuthService
-	jwtService  service.JwtService
+	authService         service.AuthService
+	jwtService          service.JwtService
+	refreshTokenService service.RefreshTokenService
 }
 
-func NewAuthHandler(authService service.AuthService, jwtService service.JwtService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, jwtService service.JwtService, refreshTokenService service.RefreshTokenService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		jwtService:  jwtService,
+		authService:         authService,
+		jwtService:          jwtService,
+		refreshTokenService: refreshTokenService,
 	}
 }
 
@@ -63,13 +65,43 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := h.jwtService.GenerateToken(user.ID)
+	refreshToken, err := h.refreshTokenService.GenerateRefreshToken(r.Context(), user.ID)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+	cookie.SetCookie(w, refreshToken.ID.String())
+
+	var response models.LoginResponse
+	response.AccessToken, err = h.jwtService.GenerateAccessToken(user.ID)
 	if err != nil {
 		HandleError(w, err)
 		return
 	}
 
-	cookie.SetCookie(w, tokenString)
+	HandleJSON(w, http.StatusOK, response)
+}
 
-	HandleJSON(w, http.StatusOK, nil)
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	c, err := cookie.GetCookie(r)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	newRefreshToken, err := h.refreshTokenService.Refresh(r.Context(), c.Value)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	newAccessToken, err := h.jwtService.GenerateAccessToken(newRefreshToken.UserID)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	cookie.SetCookie(w, newRefreshToken.ID.String())
+
+	HandleJSON(w, http.StatusOK, newAccessToken)
 }

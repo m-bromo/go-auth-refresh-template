@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -16,8 +17,8 @@ var (
 )
 
 type JwtService interface {
-	GenerateToken(userID uuid.UUID) (string, error)
-	ValidateToken(tokenString string) (*jwt.RegisteredClaims, error)
+	GenerateAccessToken(userID uuid.UUID) (string, error)
+	ValidateAccessToken(tokenString string) (*jwt.RegisteredClaims, error)
 }
 
 type jwtService struct {
@@ -30,35 +31,37 @@ func NewJwtService(cfg *config.Config) JwtService {
 	}
 }
 
-func (s *jwtService) GenerateToken(userID uuid.UUID) (string, error) {
+func (s *jwtService) GenerateAccessToken(userID uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Subject: userID.String(),
-		ID:      uuid.NewString(),
+		Subject:   userID.String(),
+		ID:        uuid.NewString(),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.cfg.Jwt.Duration)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	})
 
 	tokenString, err := token.SignedString([]byte(s.cfg.Jwt.PrivateKey))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("generate access token: %w", err)
 	}
 
 	return tokenString, nil
 }
 
-func (s *jwtService) ValidateToken(tokenString string) (*jwt.RegisteredClaims, error) {
+func (s *jwtService) ValidateAccessToken(tokenString string) (*jwt.RegisteredClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(ErrInvalidSigningMethod.Error()))
+			return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError("failed to validate signing method", ErrInvalidSigningMethod))
 		}
 
 		return []byte(s.cfg.Jwt.PrivateKey), nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError(err.Error()))
+		return nil, fmt.Errorf("validate token: %w", apierrors.NewUnauthorizedError("failed to parse token", err))
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("validate token : %w", apierrors.NewUnauthorizedError(ErrInvalidClaims.Error()))
+		return nil, fmt.Errorf("validate token : %w", apierrors.NewUnauthorizedError("failed to validate claims", ErrInvalidClaims))
 	}
 
 	return claims, nil

@@ -38,12 +38,12 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 
 	hashedPassword, err := secure.HashPassword(user.Password)
 	if err != nil {
-		return fmt.Errorf("register user: %w", apierrors.NewInternalServerError(err.Error()))
+		return fmt.Errorf("register user: %w", err)
 	}
 	user.Password = hashedPassword
 
 	if err := a.userRepository.Save(ctx, user); err != nil {
-		return fmt.Errorf("register user: %w", apierrors.NewInternalServerError(err.Error()))
+		return fmt.Errorf("register user: %w", err)
 	}
 
 	return nil
@@ -52,15 +52,15 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 func (a *authService) Login(ctx context.Context, user *domain.User) (*domain.User, error) {
 	existingUser, err := a.userRepository.GetByEmail(ctx, user.Email)
 	if err != nil {
-		return nil, fmt.Errorf("login: %w", apierrors.NewInternalServerError(err.Error()))
+		return nil, fmt.Errorf("login: %w", err)
 	}
 
 	if existingUser == nil {
-		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrUserNotRegistered.Error()))
+		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError("user is not registered", ErrUserNotRegistered))
 	}
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
-		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError(ErrInvalidCredentials.Error()))
+		return nil, fmt.Errorf("login: %w", apierrors.NewBadRequestError("the users credentials are not valid", ErrInvalidCredentials))
 	}
 
 	return existingUser, nil

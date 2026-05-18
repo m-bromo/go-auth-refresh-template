@@ -32,16 +32,16 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, fmt.Errorf("ger profile: %w", apierrors.NewInternalServerError(err.Error()))
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
 	user, err := s.userRepository.GetByID(ctx, uuid)
 	if err != nil {
-		return nil, fmt.Errorf("get profile: %w", apierrors.NewInternalServerError(err.Error()))
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
 	if user == nil {
-		return nil, fmt.Errorf("get profile: %w", apierrors.NewNotFoundError(ErrUserNotRegistered.Error()))
+		return nil, fmt.Errorf("get profile: %w", apierrors.NewNotFoundError("user does not exists", ErrUserNotFound))
 	}
 
 	return user, nil

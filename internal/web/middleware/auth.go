@@ -2,14 +2,20 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 	"github.com/m-bromo/go-auth-template/internal/service"
-	"github.com/m-bromo/go-auth-template/internal/web/cookie"
 	"github.com/m-bromo/go-auth-template/internal/web/handler"
 )
 
 const UserIDKey = "user_id"
+
+var (
+	ErrTokenNotProvided = errors.New("the jwt token was not provided")
+)
 
 type AuthMiddleware interface {
 	Authenticate(next http.Handler) http.Handler
@@ -27,13 +33,14 @@ func NewAuthMiddleware(jwtService service.JwtService) AuthMiddleware {
 
 func (s *authMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := cookie.GetCookie(r)
-		if err != nil {
-			handler.HandleError(w, err)
+		bearerToken := r.Header.Get("Authorization")
+		if bearerToken == "" {
+			handler.HandleError(w, apierrors.NewUnauthorizedError("failed to get authorization token", ErrTokenNotProvided))
 			return
 		}
 
-		claims, err := s.jwtService.ValidateToken(cookie.Value)
+		token := strings.TrimPrefix(bearerToken, "Bearer ")
+		claims, err := s.jwtService.ValidateAccessToken(token)
 		if err != nil {
 			handler.HandleError(w, err)
 			return
