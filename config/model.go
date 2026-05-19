@@ -37,5 +37,5 @@ type Jwt struct {
 }
 
 type RefreshToken struct {
-	Duration time.Duration `env:"JWT_DURATION,default=168h"`
+	Duration time.Duration `env:"REFRESH_TOKEN_DURATION,default=168h"`
 }
