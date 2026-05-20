@@ -43,6 +43,10 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 	user.Password = hashedPassword
 
 	if err := a.userRepository.Save(ctx, user); err != nil {
+		if err == repository.ErrEmailAlreadyRegistered {
+			return fmt.Errorf("saving user to repository: %w", apierrors.NewBadRequestError("there is already a user registered with this email", err))
+		}
+
 		return fmt.Errorf("saving user to repository: %w", err)
 	}
 

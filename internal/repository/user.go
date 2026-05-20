@@ -6,8 +6,13 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
+)
+
+var (
+	ErrEmailAlreadyRegistered = errors.New("the user email has already been registered")
 )
 
 type UserRepository interface {
@@ -27,12 +32,19 @@ func NewUserRepository(querier sqlc.Querier) UserRepository {
 }
 
 func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
-	return r.querier.SaveUser(ctx, sqlc.SaveUserParams{
+	var pgErr *pq.Error
+
+	err := r.querier.SaveUser(ctx, sqlc.SaveUserParams{
 		ID:       user.ID,
 		Email:    user.Email,
 		Password: user.Password,
 		Username: user.Username,
 	})
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return ErrEmailAlreadyRegistered
+	}
+
+	return nil
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
