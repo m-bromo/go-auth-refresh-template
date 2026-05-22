@@ -5,9 +5,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewConfig() (*Config, error) {
+func NewConfig(envPaths ...string) (*Config, error) {
 	var config Config
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(envPaths...); err != nil {
 		return nil, err
 	}
 
