@@ -2,8 +2,17 @@ package config
 
 import "time"
 
+type Environment string
+
+const (
+	Development Environment = "development"
+	Test        Environment = "test"
+	Staging     Environment = "staging"
+	Production  Environment = "production"
+)
+
 type Config struct {
-	Environment  string `env:"ENVIRONMENT,default=development"`
+	Environment  Environment `env:"ENVIRONMENT,default=development"`
 	API          API
 	Postgres     Postgres
 	Jwt          Jwt
@@ -38,4 +47,20 @@ type Jwt struct {
 
 type RefreshToken struct {
 	Duration time.Duration `env:"REFRESH_TOKEN_DURATION,default=168h"`
+}
+
+func (c *Config) IsDevelopment() bool {
+	return c.Environment == Development
+}
+
+func (c *Config) IsTesting() bool {
+	return c.Environment == Test
+}
+
+func (c *Config) IsStaging() bool {
+	return c.Environment == Staging
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Environment == Production
 }
