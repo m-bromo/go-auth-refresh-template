@@ -11,7 +11,7 @@ import (
 )
 
 func HandleJSON(w http.ResponseWriter, code int, body any) {
-	w.Header().Set("Content-Type", "Json")
+	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(code)
 
