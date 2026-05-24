@@ -24,21 +24,21 @@ func NewAuthHandler(authService service.AuthService, refreshTokenService service
 }
 
 func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var paylaod models.RegisterUserPayload
-	if err := json.NewDecoder(r.Body).Decode(&paylaod); err != nil {
+	var payload models.RegisterUserPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		HandleError(w, err)
 		return
 	}
 
-	if err := validation.Validator.Struct(paylaod); err != nil {
+	if err := validation.Validator.Struct(payload); err != nil {
 		HandleError(w, err)
 		return
 	}
 
 	if err := h.authService.RegisterUser(r.Context(), &domain.User{
-		Email:    paylaod.Email,
-		Password: paylaod.Password,
-		Username: paylaod.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
+		Username: payload.Username,
 	}); err != nil {
 		HandleError(w, err)
 		return
@@ -50,6 +50,11 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var payload models.LoginPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := validation.Validator.Struct(payload); err != nil {
 		HandleError(w, err)
 		return
 	}
