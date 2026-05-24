@@ -41,7 +41,12 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 }
 
 func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (string, string, error) {
-	userID, err := s.refreshTokenRepository.Get(ctx, uuid.MustParse(tokenID))
+	tokenIDstring, err := uuid.Parse(tokenID)
+	if err != nil {
+		return "", "", fmt.Errorf("parsing the token id: %w", err)
+	}
+
+	userID, err := s.refreshTokenRepository.Get(ctx, tokenIDstring)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching refresh token from repository: %w", err)
 	}
