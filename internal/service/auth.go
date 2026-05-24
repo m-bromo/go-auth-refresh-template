@@ -20,20 +20,24 @@ var (
 
 type AuthService interface {
 	RegisterUser(ctx context.Context, user *domain.User) error
-	Login(ctx context.Context, user *domain.User) (*domain.User, error)
+	Login(ctx context.Context, user *domain.User) (string, string, error)
 }
 
 type authService struct {
-	userRepository repository.UserRepository
+	userRepository      repository.UserRepository
+	jwtService          JwtService
+	refreshTokenService RefreshTokenService
 }
 
-func NewAuthService(userRepository repository.UserRepository) AuthService {
+func NewAuthService(userRepository repository.UserRepository, jwtService JwtService, refreshTokenService RefreshTokenService) AuthService {
 	return &authService{
-		userRepository: userRepository,
+		userRepository:      userRepository,
+		jwtService:          jwtService,
+		refreshTokenService: refreshTokenService,
 	}
 }
 
-func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error {
+func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error {
 	user.ID = uuid.New()
 
 	hashedPassword, err := secure.HashPassword(user.Password)
@@ -42,7 +46,7 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 	}
 	user.Password = hashedPassword
 
-	if err := a.userRepository.Save(ctx, user); err != nil {
+	if err := s.userRepository.Save(ctx, user); err != nil {
 		if err == repository.ErrEmailAlreadyRegistered {
 			return fmt.Errorf("saving user to repository: %w", apierrors.NewBadRequestError("there is already a user registered with this email", err))
 		}
@@ -53,19 +57,29 @@ func (a *authService) RegisterUser(ctx context.Context, user *domain.User) error
 	return nil
 }
 
-func (a *authService) Login(ctx context.Context, user *domain.User) (*domain.User, error) {
-	existingUser, err := a.userRepository.GetByEmail(ctx, user.Email)
+func (s *authService) Login(ctx context.Context, user *domain.User) (string, string, error) {
+	existingUser, err := s.userRepository.GetByEmail(ctx, user.Email)
 	if err != nil {
-		return nil, fmt.Errorf("fetching user by email: %w", err)
+		return "", "", fmt.Errorf("fetching user by email: %w", err)
 	}
 
 	if existingUser == nil {
-		return nil, fmt.Errorf("validating user existence: %w", apierrors.NewBadRequestError("Invalid email or password.", ErrUserNotRegistered))
+		return "", "", fmt.Errorf("validating user existence: %w", apierrors.NewBadRequestError("Invalid email or password.", ErrUserNotRegistered))
 	}
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
-		return nil, fmt.Errorf("checking password: %w", apierrors.NewBadRequestError("Invalid email or password.", ErrInvalidCredentials))
+		return "", "", fmt.Errorf("checking password: %w", apierrors.NewBadRequestError("Invalid email or password.", ErrInvalidCredentials))
 	}
 
-	return existingUser, nil
+	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("generating access token: %w", err)
+	}
+
+	refreshToken, err := s.refreshTokenService.GenerateRefreshToken(ctx, existingUser.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("generating refresh token: %w", err)
+	}
+
+	return accessToken, refreshToken.ID.String(), nil
 }

@@ -12,16 +12,18 @@ import (
 
 type RefreshTokenService interface {
 	GenerateRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error)
-	Refresh(ctx context.Context, tokenID string) (*domain.RefreshToken, error)
+	Refresh(ctx context.Context, tokenID string) (string, string, error)
 }
 
 type refreshTokenService struct {
 	refreshTokenRepository repository.RefreshTokenRepository
+	jwtService             JwtService
 }
 
-func NewRefreshTokenService(refreshTokenRepository repository.RefreshTokenRepository) RefreshTokenService {
+func NewRefreshTokenService(refreshTokenRepository repository.RefreshTokenRepository, jwtService JwtService) RefreshTokenService {
 	return &refreshTokenService{
 		refreshTokenRepository: refreshTokenRepository,
+		jwtService:             jwtService,
 	}
 }
 
@@ -38,18 +40,18 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 	return &refreshToken, nil
 }
 
-func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (*domain.RefreshToken, error) {
+func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (string, string, error) {
 	userID, err := s.refreshTokenRepository.Get(ctx, uuid.MustParse(tokenID))
 	if err != nil {
-		return nil, fmt.Errorf("fetching refresh token from repository: %w", err)
+		return "", "", fmt.Errorf("fetching refresh token from repository: %w", err)
 	}
 
 	if userID == "" {
-		return nil, fmt.Errorf("validating refresh token existence: %w", clienterrors.NewUnauthorizedError("token not found or expired", err))
+		return "", "", fmt.Errorf("validating refresh token existence: %w", clienterrors.NewUnauthorizedError("token not found or expired", err))
 	}
 
 	if err := s.refreshTokenRepository.Delete(ctx, uuid.MustParse(tokenID)); err != nil {
-		return nil, fmt.Errorf("deleting old refresh token: %w", err)
+		return "", "", fmt.Errorf("deleting old refresh token: %w", err)
 	}
 
 	newToken := domain.RefreshToken{
@@ -58,8 +60,13 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (*dom
 	}
 
 	if err := s.refreshTokenRepository.Save(ctx, &newToken); err != nil {
-		return nil, fmt.Errorf("saving new refresh token to repository: %w", err)
+		return "", "", fmt.Errorf("saving new refresh token to repository: %w", err)
 	}
 
-	return &newToken, nil
+	accessToken, err := s.jwtService.GenerateAccessToken(newToken.UserID)
+	if err != nil {
+		return "", "", fmt.Errorf("generating new access token: %w", err)
+	}
+
+	return accessToken, newToken.ID.String(), nil
 }

@@ -17,6 +17,7 @@ import (
 
 	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/domain"
+	"github.com/m-bromo/go-auth-template/internal/infra/cache"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
@@ -78,9 +79,18 @@ func TestMain(m *testing.M) {
 func TestRegisterUser_Integration(t *testing.T) {
 	ctx := context.Background()
 
+	cfg, err := config.NewConfig("../.env")
+	if err != nil {
+		log.Fatalf("failed to setup config: %v", err)
+	}
+
 	querier := sqlc.New(db)
+	redisClient := cache.NewRedisClient(cfg)
 	userRepository := repository.NewUserRepository(querier)
-	authService := service.NewAuthService(userRepository)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	jwtService := service.NewJwtService(cfg)
+	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
 
 	t.Run("should register a user successfully", func(t *testing.T) {
 		user := &domain.User{

@@ -13,14 +13,12 @@ import (
 
 type AuthHandler struct {
 	authService         service.AuthService
-	jwtService          service.JwtService
 	refreshTokenService service.RefreshTokenService
 }
 
-func NewAuthHandler(authService service.AuthService, jwtService service.JwtService, refreshTokenService service.RefreshTokenService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, refreshTokenService service.RefreshTokenService) *AuthHandler {
 	return &AuthHandler{
 		authService:         authService,
-		jwtService:          jwtService,
 		refreshTokenService: refreshTokenService,
 	}
 }
@@ -56,7 +54,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.authService.Login(r.Context(), &domain.User{
+	accessToken, refreshToken, err := h.authService.Login(r.Context(), &domain.User{
 		Email:    payload.Email,
 		Password: payload.Password,
 	})
@@ -64,19 +62,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		HandleError(w, err)
 		return
 	}
+	cookie.SetCookie(w, refreshToken)
 
-	refreshToken, err := h.refreshTokenService.GenerateRefreshToken(r.Context(), user.ID)
-	if err != nil {
-		HandleError(w, err)
-		return
-	}
-	cookie.SetCookie(w, refreshToken.ID.String())
-
-	var response models.LoginResponse
-	response.AccessToken, err = h.jwtService.GenerateAccessToken(user.ID)
-	if err != nil {
-		HandleError(w, err)
-		return
+	response := &models.LoginResponse{
+		AccessToken: accessToken,
 	}
 
 	HandleJSON(w, http.StatusOK, response)
@@ -89,19 +78,13 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newRefreshToken, err := h.refreshTokenService.Refresh(r.Context(), c.Value)
+	newAccessToken, newRefreshToken, err := h.refreshTokenService.Refresh(r.Context(), c.Value)
 	if err != nil {
 		HandleError(w, err)
 		return
 	}
 
-	newAccessToken, err := h.jwtService.GenerateAccessToken(newRefreshToken.UserID)
-	if err != nil {
-		HandleError(w, err)
-		return
-	}
-
-	cookie.SetCookie(w, newRefreshToken.ID.String())
+	cookie.SetCookie(w, newRefreshToken)
 
 	HandleJSON(w, http.StatusOK, newAccessToken)
 }
