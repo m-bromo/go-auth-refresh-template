@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
@@ -234,4 +236,124 @@ func TestLogin_Integration(t *testing.T) {
 			t.Errorf("expected error for non-existent email, but got success")
 		}
 	})
+}
+
+func TestRefreshToken_Integration(t *testing.T) {
+	ctx := context.Background()
+
+	cfg, err := config.NewConfig("../.env")
+	if err != nil {
+		log.Fatalf("failed to setup config: %v", err)
+	}
+
+	querier := sqlc.New(db)
+	userRepository := repository.NewUserRepository(querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	jwtService := service.NewJwtService(cfg)
+	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+
+	password := "password@123"
+	user := &domain.User{
+		Email:    "refresh@test.com",
+		Username: "refreshUser",
+		Password: password,
+	}
+
+	if err := authService.RegisterUser(ctx, user); err != nil {
+		t.Fatalf("failed to setup user for refresh token test: %v", err)
+	}
+
+	accessToken, refreshToken, err := authService.Login(ctx, &domain.User{
+		Email:    user.Email,
+		Password: password,
+	})
+	if err != nil {
+		t.Fatalf("failed to login user for refresh token test: %v", err)
+	}
+
+	if accessToken == "" {
+		t.Fatalf("expected login to return an access token")
+	}
+
+	refreshTokenID, err := uuid.Parse(refreshToken)
+	if err != nil {
+		t.Fatalf("expected refresh token to be a valid UUID, got %q: %v", refreshToken, err)
+	}
+
+	userID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	if err != nil {
+		t.Fatalf("failed to fetch refresh token from redis: %v", err)
+	}
+
+	if userID == "" {
+		t.Fatalf("expected refresh token to be stored in redis")
+	}
+
+	newAccessToken, newRefreshToken, err := refreshTokenService.Refresh(ctx, refreshToken)
+	if err != nil {
+		t.Fatalf("did not expect an error when refreshing token, but got: %v", err)
+	}
+
+	if newAccessToken == "" {
+		t.Errorf("expected a new access token, but got empty string")
+	}
+
+	if newAccessToken == accessToken {
+		t.Errorf("expected a rotated access token, but got the original token")
+	}
+
+	if newRefreshToken == "" {
+		t.Fatalf("expected a new refresh token, but got empty string")
+	}
+
+	if newRefreshToken == refreshToken {
+		t.Errorf("expected refresh token to be rotated")
+	}
+
+	oldTokenUserID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	if err != nil {
+		t.Fatalf("failed to fetch old refresh token from redis: %v", err)
+	}
+
+	if oldTokenUserID != "" {
+		t.Errorf("expected old refresh token to be deleted from redis")
+	}
+
+	newRefreshTokenID, err := uuid.Parse(newRefreshToken)
+	if err != nil {
+		t.Fatalf("expected new refresh token to be a valid UUID, got %q: %v", newRefreshToken, err)
+	}
+
+	newTokenUserID, err := refreshTokenRepository.Get(ctx, newRefreshTokenID)
+	if err != nil {
+		t.Fatalf("failed to fetch new refresh token from redis: %v", err)
+	}
+
+	if newTokenUserID != userID {
+		t.Errorf("expected new refresh token user ID %q, got %q", userID, newTokenUserID)
+	}
+
+	claims, err := jwtService.ValidateAccessToken("Bearer " + newAccessToken)
+	if err != nil {
+		t.Fatalf("expected new access token to be valid, got: %v", err)
+	}
+
+	if claims.Subject != userID {
+		t.Errorf("expected access token subject %q, got %q", userID, claims.Subject)
+	}
+
+	_, _, err = refreshTokenService.Refresh(ctx, refreshToken)
+	if err == nil {
+		t.Fatalf("expected old refresh token to be rejected after rotation")
+	}
+
+	var clientErr *apierrors.ClientErr
+	if !errors.As(err, &clientErr) {
+		t.Fatalf("expected old refresh token error to wrap a client error, got: %v", err)
+	}
+
+	if clientErr.Code != 401 {
+		t.Errorf("expected old refresh token to return status code 401, got %d", clientErr.Code)
+	}
 }
