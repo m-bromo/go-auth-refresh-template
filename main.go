@@ -13,6 +13,7 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/service"
 	"github.com/m-bromo/go-auth-template/internal/web/handler"
 	"github.com/m-bromo/go-auth-template/internal/web/middleware"
+	"github.com/m-bromo/go-auth-template/internal/web/routes"
 	"github.com/m-bromo/go-auth-template/internal/web/server"
 )
 
@@ -42,12 +43,11 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService, refreshTokenService)
 	userHandler := handler.NewUserHandler(userService)
 
-	srv.POST("/auth/register", authHandler.RegisterUser)
-	srv.POST("/auth/login", authHandler.Login)
-
-	srv.GET("/user/{id}", userHandler.GetProfile, authMiddleware.Authenticate)
-
-	srv.POST("/refresh", authHandler.Refresh)
+	routes.SetupRoutes(srv, routes.Dependencies{
+		AuthHandler:    authHandler,
+		UserHandler:    userHandler,
+		AuthMiddleware: authMiddleware,
+	})
 
 	if err := srv.Run(fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)); err != nil {
 		log.Fatal(err)
