@@ -184,11 +184,3 @@ Regenerate sqlc code after changing SQL files:
 ```bash
 sqlc generate
 ```
-
-## Contributing
-
-This repository does not currently include a separate `CONTRIBUTING.md`. For small changes, keep the existing package structure, run `gofmt`, and run `make test` before opening a pull request.
-
-## License
-
-No license file is currently included.
