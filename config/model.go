@@ -36,7 +36,7 @@ type Postgres struct {
 type Redis struct {
 	Host     string `env:"REDIS_HOST,default=localhost"`
 	Port     string `env:"REDIS_PORT,default=6379"`
-	Password string `env:"REDISS_PASSWORD"`
+	Password string `env:"REDIS_PASSWORD"`
 }
 
 type Jwt struct {
