@@ -14,12 +14,18 @@ import (
 type AuthHandler struct {
 	authService         service.AuthService
 	refreshTokenService service.RefreshTokenService
+	cookieManager       *cookie.CookieManager
 }
 
-func NewAuthHandler(authService service.AuthService, refreshTokenService service.RefreshTokenService) *AuthHandler {
+func NewAuthHandler(
+	authService service.AuthService,
+	refreshTokenService service.RefreshTokenService,
+	cookieManager *cookie.CookieManager,
+) *AuthHandler {
 	return &AuthHandler{
 		authService:         authService,
 		refreshTokenService: refreshTokenService,
+		cookieManager:       cookieManager,
 	}
 }
 
@@ -67,7 +73,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		HandleError(w, err)
 		return
 	}
-	cookie.SetCookie(w, refreshToken)
+	h.cookieManager.SetCookie(w, refreshToken)
 
 	response := &models.LoginResponse{
 		AccessToken: accessToken,
@@ -77,7 +83,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	c, err := cookie.GetCookie(r)
+	c, err := h.cookieManager.GetCookie(r)
 	if err != nil {
 		HandleError(w, err)
 		return
@@ -89,7 +95,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.SetCookie(w, newRefreshToken)
+	h.cookieManager.SetCookie(w, newRefreshToken)
 
 	HandleJSON(w, http.StatusOK, newAccessToken)
 }

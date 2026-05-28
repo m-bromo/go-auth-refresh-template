@@ -1,22 +1,38 @@
 package cookie
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/m-bromo/go-auth-template/config"
+)
 
 const cookieName = "auth_cookie"
 
-func SetCookie(w http.ResponseWriter, value string) {
+type CookieManager struct {
+	cfg *config.Config
+}
+
+func NewCookieManager(cfg *config.Config) *CookieManager {
+	return &CookieManager{
+		cfg: cfg,
+	}
+}
+
+func (c *CookieManager) SetCookie(w http.ResponseWriter, value string) {
 	cookie := http.Cookie{
 		Name:     cookieName,
 		Value:    value,
 		Path:     "/",
-		MaxAge:   3600,
+		MaxAge:   int(c.cfg.RefreshToken.Duration.Seconds()),
 		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteDefaultMode,
 	}
 
 	http.SetCookie(w, &cookie)
 }
 
-func GetCookie(r *http.Request) (*http.Cookie, error) {
+func (c *CookieManager) GetCookie(r *http.Request) (*http.Cookie, error) {
 	cookie, err := r.Cookie(cookieName)
 	if err != nil {
 		return nil, err

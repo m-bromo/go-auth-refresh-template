@@ -11,6 +11,7 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
+	"github.com/m-bromo/go-auth-template/internal/web/cookie"
 	"github.com/m-bromo/go-auth-template/internal/web/handler"
 	"github.com/m-bromo/go-auth-template/internal/web/middleware"
 	"github.com/m-bromo/go-auth-template/internal/web/routes"
@@ -39,8 +40,9 @@ func main() {
 	jwtService := service.NewJwtService(cfg)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
 	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+	cookieManager := cookie.NewCookieManager(cfg)
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
-	authHandler := handler.NewAuthHandler(authService, refreshTokenService)
+	authHandler := handler.NewAuthHandler(authService, refreshTokenService, cookieManager)
 	userHandler := handler.NewUserHandler(userService)
 
 	routes.SetupRoutes(srv, routes.Dependencies{
