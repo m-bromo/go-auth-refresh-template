@@ -41,7 +41,6 @@ type Redis struct {
 
 type Jwt struct {
 	PrivateKey string        `env:"JWT_PRIVATE_KEY"`
-	PublicKey  string        `env:"JWT_PUBLIC_KEY"`
 	Duration   time.Duration `env:"JWT_DURATION,default=15m"`
 }
 

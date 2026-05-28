@@ -52,6 +52,10 @@ func (r *refreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (st
 
 func (r *refreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID) (string, error) {
 	tokenString, err := r.redisClient.GetDel(ctx, tokenID.String()).Result()
+	if err == redis.Nil {
+		return "", nil
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("delete token: %w", err)
 	}
