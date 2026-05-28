@@ -1,4 +1,4 @@
-.PHONY: run build test docker-up docker-down start
+.PHONY: run build test test-integration docker-up docker-down start
 
 migrate:
 	@echo "🔨 Rodando as migrações do banco de dados..."
@@ -15,6 +15,10 @@ build:
 test:
 	@echo "🧪 Rodando testes..."
 	go test ./...
+
+test-integration:
+	@echo "🧪 Rodando testes de integração..."
+	go test -tags=integration ./...
 
 docker-up:
 	@echo "🐳 Construindo a imagem Docker..."

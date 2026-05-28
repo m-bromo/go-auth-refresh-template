@@ -1,3 +1,5 @@
+//go:build integration
+
 package service_test
 
 import (
@@ -6,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -58,6 +62,9 @@ func TestMain(m *testing.M) {
 		tcredis.WithSnapshotting(10, 1),
 		tcredis.WithLogLevel(tcredis.LogLevelDebug),
 	)
+	if err != nil {
+		log.Fatalf("failed to run redis container: %v", err)
+	}
 
 	defer func() {
 		if err := pgContainer.Terminate(ctx); err != nil {
@@ -102,7 +109,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to migrate: %v", err)
 	}
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestRegisterUser_Integration(t *testing.T) {
@@ -161,8 +168,17 @@ func TestRegisterUser_Integration(t *testing.T) {
 			t.Errorf("expected duplicate email error, but got success")
 		}
 
-		if errors.Is(err, service.ErrUserAlreadyRegistered) {
-			t.Errorf("expected bad request error for duplicate email, but got: %v", err)
+		var clientErr *clienterrors.ClientErr
+		if !errors.As(err, &clientErr) {
+			t.Fatalf("expected duplicate email to wrap a client error, got: %v", err)
+		}
+
+		if clientErr.Code != http.StatusBadRequest {
+			t.Errorf("expected duplicate email to return status code %d, got %d", http.StatusBadRequest, clientErr.Code)
+		}
+
+		if !errors.Is(clientErr.Err, repository.ErrEmailAlreadyRegistered) {
+			t.Errorf("expected duplicate email cause, got: %v", clientErr.Err)
 		}
 	})
 }
@@ -353,7 +369,7 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected old refresh token error to wrap a client error, got: %v", err)
 	}
 
-	if clientErr.Code != 401 {
-		t.Errorf("expected old refresh token to return status code 401, got %d", clientErr.Code)
+	if clientErr.Code != http.StatusUnauthorized {
+		t.Errorf("expected old refresh token to return status code %d, got %d", http.StatusUnauthorized, clientErr.Code)
 	}
 }
