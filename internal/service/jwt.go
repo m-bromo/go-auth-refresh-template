@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrInvalidSigningMethod = errors.New("the token signing method is invalid")
-	ErrInvalidClaims        = errors.New("the token claims are invalid")
+	ErrInvalidSigningMethod = errors.New("invalid token signing method")
+	ErrInvalidClaims        = errors.New("invalid token claims")
 	ErrTokenNotProvided     = errors.New("token string was not provided")
+	ErrInvalidToken         = errors.New("invalid token")
 )
 
 type JwtService interface {
@@ -53,23 +54,23 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
 
 	if tokenString == "" {
-		return nil, fmt.Errorf("verifying token string format: %w", clienterrors.NewUnauthorizedError("failed to validadate token format", ErrTokenNotProvided))
+		return nil, clienterrors.NewUnauthorizedError("token string was not provided", ErrTokenNotProvided)
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("verifying signing method: %w", clienterrors.NewUnauthorizedError("failed to validate signing method", ErrInvalidSigningMethod))
+			return nil, clienterrors.NewUnauthorizedError("invalid token signing method", ErrInvalidSigningMethod)
 		}
 
 		return []byte(s.cfg.Jwt.PrivateKey), nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("parsing token with claims: %w", clienterrors.NewUnauthorizedError("failed to parse token", err))
+		return nil, clienterrors.NewUnauthorizedError("invalid token", ErrInvalidToken)
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("validating token claims: %w", clienterrors.NewUnauthorizedError("failed to validate claims", ErrInvalidClaims))
+		return nil, clienterrors.NewUnauthorizedError("invalid token claims", ErrInvalidClaims)
 	}
 
 	return claims, nil

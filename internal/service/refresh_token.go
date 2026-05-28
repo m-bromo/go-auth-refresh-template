@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -19,6 +20,11 @@ type refreshTokenService struct {
 	refreshTokenRepository repository.RefreshTokenRepository
 	jwtService             JwtService
 }
+
+var (
+	ErrInvalidRefreshToken           = errors.New("invalid refresh token")
+	ErrRefreshTokenNotFoundOrExpired = errors.New("refresh token not found or expired")
+)
 
 func NewRefreshTokenService(refreshTokenRepository repository.RefreshTokenRepository, jwtService JwtService) RefreshTokenService {
 	return &refreshTokenService{
@@ -43,7 +49,7 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (string, string, error) {
 	tokenIDstring, err := uuid.Parse(tokenID)
 	if err != nil {
-		return "", "", fmt.Errorf("parsing the token id: %w", clienterrors.NewUnauthorizedError("failed to authenticate user", err))
+		return "", "", clienterrors.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
 	userID, err := s.refreshTokenRepository.Consume(ctx, tokenIDstring)
@@ -52,7 +58,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (stri
 	}
 
 	if userID == "" {
-		return "", "", fmt.Errorf("validating refresh token existence: %w", clienterrors.NewUnauthorizedError("token not found or expired", err))
+		return "", "", clienterrors.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
 	}
 
 	userIDString, err := uuid.Parse(userID)

@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("the user was not found in database")
+	ErrInvalidUserID = errors.New("invalid user id")
+	ErrUserNotFound  = errors.New("user not found")
 )
 
 type UserService interface {
@@ -32,7 +33,7 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, fmt.Errorf("parsing user ID: %w", clienterrors.NewBadRequestError("invalid uuid format", err))
+		return nil, clienterrors.NewBadRequestError("invalid user id", ErrInvalidUserID)
 	}
 
 	user, err := s.userRepository.GetByID(ctx, uuid)
@@ -41,7 +42,7 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, 
 	}
 
 	if user == nil {
-		return nil, fmt.Errorf("validating user existence: %w", clienterrors.NewNotFoundError("user does not exists", ErrUserNotFound))
+		return nil, clienterrors.NewNotFoundError("user not found", ErrUserNotFound)
 	}
 
 	return user, nil

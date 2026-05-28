@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	ErrUserAlreadyRegistered = errors.New("this user's email was already registered")
-	ErrUserNotRegistered     = errors.New("this user is not registered")
-	ErrInvalidCredentials    = errors.New("the user has invalid credentials")
+	ErrUserAlreadyRegistered = errors.New("user email is already registered")
+	ErrUserNotRegistered     = errors.New("user is not registered")
+	ErrInvalidCredentials    = errors.New("invalid user credentials")
 )
 
 type AuthService interface {
@@ -47,8 +47,8 @@ func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error
 	user.Password = hashedPassword
 
 	if err := s.userRepository.Save(ctx, user); err != nil {
-		if err == repository.ErrEmailAlreadyRegistered {
-			return fmt.Errorf("saving user to repository: %w", clienterrors.NewBadRequestError("there is already a user registered with this email", err))
+		if errors.Is(err, repository.ErrEmailAlreadyRegistered) {
+			return clienterrors.NewConflictError("user email is already registered", ErrUserAlreadyRegistered)
 		}
 
 		return fmt.Errorf("saving user to repository: %w", err)
@@ -64,11 +64,11 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 	}
 
 	if existingUser == nil {
-		return "", "", fmt.Errorf("validating user existence: %w", clienterrors.NewBadRequestError("Invalid email or password.", ErrUserNotRegistered))
+		return "", "", clienterrors.NewUnauthorizedError("invalid email or password", ErrUserNotRegistered)
 	}
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
-		return "", "", fmt.Errorf("checking password: %w", clienterrors.NewBadRequestError("Invalid email or password.", ErrInvalidCredentials))
+		return "", "", clienterrors.NewUnauthorizedError("invalid email or password", ErrInvalidCredentials)
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)
