@@ -44,6 +44,10 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 		return ErrEmailAlreadyRegistered
 	}
 
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
