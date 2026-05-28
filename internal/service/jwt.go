@@ -53,7 +53,7 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
 
 	if tokenString == "" {
-		return nil, fmt.Errorf("verifiyng token string format: %w", apierrors.NewUnauthorizedError("failed to validadate token format", ErrTokenNotProvided))
+		return nil, fmt.Errorf("verifying token string format: %w", apierrors.NewUnauthorizedError("failed to validadate token format", ErrTokenNotProvided))
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {

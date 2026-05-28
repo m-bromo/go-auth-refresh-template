@@ -36,6 +36,6 @@ func HandleError(w http.ResponseWriter, err error) {
 	}
 
 	HandleJSON(w, http.StatusInternalServerError, nil)
-	slog.Error("an unexpected internal error has ocurred", "error", err.Error())
+	slog.Error("an unexpected internal error has occurred", "error", err.Error())
 
 }

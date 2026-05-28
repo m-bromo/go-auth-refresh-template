@@ -32,7 +32,7 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, fmt.Errorf("parsing user ID: %w", err)
+		return nil, fmt.Errorf("parsing user ID: %w", apierrors.NewBadRequestError("invalid uuid format", err))
 	}
 
 	user, err := s.userRepository.GetByID(ctx, uuid)
