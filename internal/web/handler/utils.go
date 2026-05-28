@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 )
 
 func HandleJSON(w http.ResponseWriter, code int, body any) {
@@ -15,15 +15,23 @@ func HandleJSON(w http.ResponseWriter, code int, body any) {
 
 	w.WriteHeader(code)
 
-	json.NewEncoder(w).Encode(body)
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		slog.Error("failed to encode JSON response", "error", err)
+	}
 }
 
 func HandleError(w http.ResponseWriter, err error) {
 	var validationErr validator.ValidationErrors
-	var apiErr *apierrors.ClientErr
+	var apiErr *clienterrors.ClientErr
+
+	if err == nil {
+		HandleJSON(w, http.StatusInternalServerError, nil)
+		slog.Error("an unexpected internal error has occurred")
+		return
+	}
 
 	if errors.As(err, &validationErr) {
-		apiErr = apierrors.NewValidationError(validationErr)
+		apiErr = clienterrors.NewValidationError(validationErr)
 		slog.Warn("failed to validate", "error", apiErr)
 		HandleJSON(w, apiErr.Code, apiErr)
 		return
@@ -36,6 +44,6 @@ func HandleError(w http.ResponseWriter, err error) {
 	}
 
 	HandleJSON(w, http.StatusInternalServerError, nil)
-	slog.Error("an unexpected internal error has occurred", "error", err.Error())
+	slog.Error("an unexpected internal error has occurred", "error", err)
 
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/config"
-	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 )
 
 var (
@@ -53,23 +53,23 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
 
 	if tokenString == "" {
-		return nil, fmt.Errorf("verifying token string format: %w", apierrors.NewUnauthorizedError("failed to validadate token format", ErrTokenNotProvided))
+		return nil, fmt.Errorf("verifying token string format: %w", clienterrors.NewUnauthorizedError("failed to validadate token format", ErrTokenNotProvided))
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("verifying signing method: %w", apierrors.NewUnauthorizedError("failed to validate signing method", ErrInvalidSigningMethod))
+			return nil, fmt.Errorf("verifying signing method: %w", clienterrors.NewUnauthorizedError("failed to validate signing method", ErrInvalidSigningMethod))
 		}
 
 		return []byte(s.cfg.Jwt.PrivateKey), nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("parsing token with claims: %w", apierrors.NewUnauthorizedError("failed to parse token", err))
+		return nil, fmt.Errorf("parsing token with claims: %w", clienterrors.NewUnauthorizedError("failed to parse token", err))
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("validating token claims: %w", apierrors.NewUnauthorizedError("failed to validate claims", ErrInvalidClaims))
+		return nil, fmt.Errorf("validating token claims: %w", clienterrors.NewUnauthorizedError("failed to validate claims", ErrInvalidClaims))
 	}
 
 	return claims, nil

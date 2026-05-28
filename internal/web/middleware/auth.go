@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/service"
 	"github.com/m-bromo/go-auth-template/internal/web/handler"
 )
@@ -43,7 +43,7 @@ func (s *authMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 
 		if requestedUserID := r.PathValue("id"); requestedUserID != claims.Subject {
-			handler.HandleError(w, fmt.Errorf("validating authenticated subject: %w", apierrors.NewForbiddenError("you are not allowed to access this user", ErrUserForbidden)))
+			handler.HandleError(w, fmt.Errorf("validating authenticated subject: %w", clienterrors.NewForbiddenError("you are not allowed to access this user", ErrUserForbidden)))
 			return
 		}
 

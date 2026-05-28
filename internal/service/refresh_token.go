@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/api_errors"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
