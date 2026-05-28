@@ -3,8 +3,10 @@ package middleware
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
+	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
 	"github.com/m-bromo/go-auth-template/internal/service"
 	"github.com/m-bromo/go-auth-template/internal/web/handler"
 )
@@ -13,6 +15,7 @@ const UserIDKey = "user_id"
 
 var (
 	ErrTokenNotProvided = errors.New("the jwt token was not provided")
+	ErrUserForbidden    = errors.New("the requested user is not the authenticated subject")
 )
 
 type AuthMiddleware interface {
@@ -36,6 +39,11 @@ func (s *authMiddleware) Authenticate(next http.Handler) http.Handler {
 		claims, err := s.jwtService.ValidateAccessToken(token)
 		if err != nil {
 			handler.HandleError(w, err)
+			return
+		}
+
+		if requestedUserID := r.PathValue("id"); requestedUserID != claims.Subject {
+			handler.HandleError(w, fmt.Errorf("validating authenticated subject: %w", apierrors.NewForbiddenError("you are not allowed to access this user", ErrUserForbidden)))
 			return
 		}
 
