@@ -43,20 +43,16 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (string, string, error) {
 	tokenIDstring, err := uuid.Parse(tokenID)
 	if err != nil {
-		return "", "", fmt.Errorf("parsing the token id: %w", err)
+		return "", "", fmt.Errorf("parsing the token id: %w", clienterrors.NewUnauthorizedError("failed to autheticate user", err))
 	}
 
-	userID, err := s.refreshTokenRepository.Get(ctx, tokenIDstring)
+	userID, err := s.refreshTokenRepository.Consume(ctx, tokenIDstring)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching refresh token from repository: %w", err)
 	}
 
 	if userID == "" {
 		return "", "", fmt.Errorf("validating refresh token existence: %w", clienterrors.NewUnauthorizedError("token not found or expired", err))
-	}
-
-	if err := s.refreshTokenRepository.Delete(ctx, uuid.MustParse(tokenID)); err != nil {
-		return "", "", fmt.Errorf("deleting old refresh token: %w", err)
 	}
 
 	newToken := domain.RefreshToken{
