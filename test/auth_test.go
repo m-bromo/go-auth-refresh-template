@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	apierrors "github.com/m-bromo/go-auth-template/internal/api_errors"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
@@ -348,7 +348,7 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected old refresh token to be rejected after rotation")
 	}
 
-	var clientErr *apierrors.ClientErr
+	var clientErr *clienterrors.ClientErr
 	if !errors.As(err, &clientErr) {
 		t.Fatalf("expected old refresh token error to wrap a client error, got: %v", err)
 	}
