@@ -72,7 +72,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Use
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user, err := r.querier.GetByEmail(ctx, email)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 

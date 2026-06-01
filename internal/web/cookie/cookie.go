@@ -40,3 +40,17 @@ func (c *CookieManager) GetCookie(r *http.Request) (*http.Cookie, error) {
 
 	return cookie, nil
 }
+
+func (c *CookieManager) DeleteCookie(w http.ResponseWriter) {
+	cookie := http.Cookie{
+		Name:     cookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	}
+
+	http.SetCookie(w, &cookie)
+}

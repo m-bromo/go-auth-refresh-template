@@ -14,6 +14,7 @@ type RefreshTokenRepository interface {
 	Save(ctx context.Context, token *domain.RefreshToken) error
 	Get(ctx context.Context, tokenID uuid.UUID) (string, error)
 	Consume(ctx context.Context, tokenID uuid.UUID) (string, error)
+	Delete(ctx context.Context, tokenID uuid.UUID) error
 }
 
 type refreshTokenRepository struct {
@@ -57,8 +58,17 @@ func (r *refreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID)
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("delete token: %w", err)
+		return "", fmt.Errorf("consume refresh token: %w", err)
 	}
 
 	return tokenString, nil
+}
+
+func (r *refreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) error {
+	_, err := r.redisClient.Del(ctx, tokenID.String()).Result()
+	if err != nil {
+		return fmt.Errorf("delete refresh token: %w", err)
+	}
+
+	return nil
 }

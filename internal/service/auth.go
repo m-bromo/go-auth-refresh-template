@@ -29,7 +29,11 @@ type authService struct {
 	refreshTokenService RefreshTokenService
 }
 
-func NewAuthService(userRepository repository.UserRepository, jwtService JwtService, refreshTokenService RefreshTokenService) AuthService {
+func NewAuthService(
+	userRepository repository.UserRepository,
+	jwtService JwtService,
+	refreshTokenService RefreshTokenService,
+) AuthService {
 	return &authService{
 		userRepository:      userRepository,
 		jwtService:          jwtService,

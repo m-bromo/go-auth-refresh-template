@@ -22,6 +22,10 @@ func (r *ClientErr) Error() string {
 	return r.Message
 }
 
+func (r *ClientErr) Unwrap() error {
+	return r.Err
+}
+
 func NewValidationError(validationErr validator.ValidationErrors) *ClientErr {
 	causes := make([]Causes, len(validationErr))
 

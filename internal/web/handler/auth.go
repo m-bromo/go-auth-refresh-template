@@ -50,7 +50,7 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	HandleJSON(w, http.StatusCreated, nil)
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -98,4 +98,23 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	h.cookieManager.SetCookie(w, newRefreshToken)
 
 	HandleJSON(w, http.StatusOK, newAccessToken)
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := h.cookieManager.GetCookie(r)
+	if err != nil {
+		h.cookieManager.DeleteCookie(w)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if err := h.refreshTokenService.Revoke(r.Context(), cookie.Value); err != nil {
+		h.cookieManager.DeleteCookie(w)
+		HandleError(w, err)
+		return
+	}
+
+	h.cookieManager.DeleteCookie(w)
+
+	w.WriteHeader(http.StatusNoContent)
 }

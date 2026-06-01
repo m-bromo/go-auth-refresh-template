@@ -13,7 +13,8 @@ import (
 
 type RefreshTokenService interface {
 	GenerateRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error)
-	Refresh(ctx context.Context, tokenID string) (string, string, error)
+	Refresh(ctx context.Context, tokenIDString string) (string, string, error)
+	Revoke(ctx context.Context, tokenIDString string) error
 }
 
 type refreshTokenService struct {
@@ -46,13 +47,13 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 	return &refreshToken, nil
 }
 
-func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (string, string, error) {
-	tokenIDstring, err := uuid.Parse(tokenID)
+func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string) (string, string, error) {
+	tokenID, err := uuid.Parse(tokenIDString)
 	if err != nil {
 		return "", "", clienterrors.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
-	userID, err := s.refreshTokenRepository.Consume(ctx, tokenIDstring)
+	userID, err := s.refreshTokenRepository.Consume(ctx, tokenID)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching refresh token from repository: %w", err)
 	}
@@ -81,4 +82,17 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenID string) (stri
 	}
 
 	return accessToken, newToken.ID.String(), nil
+}
+
+func (s *refreshTokenService) Revoke(ctx context.Context, tokenIDString string) error {
+	tokenID, err := uuid.Parse(tokenIDString)
+	if err != nil {
+		return clienterrors.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
+	}
+
+	if err := s.refreshTokenRepository.Delete(ctx, tokenID); err != nil {
+		return fmt.Errorf("deleting refresh token: %w", err)
+	}
+
+	return nil
 }
