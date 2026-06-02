@@ -8,14 +8,12 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
@@ -168,17 +166,17 @@ func TestRegisterUser_Integration(t *testing.T) {
 			t.Errorf("expected duplicate email error, but got success")
 		}
 
-		var clientErr *clienterrors.ClientErr
-		if !errors.As(err, &clientErr) {
-			t.Fatalf("expected duplicate email to wrap a client error, got: %v", err)
+		var domainErr *domain.DomainError
+		if !errors.As(err, &domainErr) {
+			t.Fatalf("expected duplicate email to wrap a domain error, got: %v", err)
 		}
 
-		if clientErr.Code != http.StatusBadRequest {
-			t.Errorf("expected duplicate email to return status code %d, got %d", http.StatusBadRequest, clientErr.Code)
+		if domainErr.ErrorType != domain.Conflict {
+			t.Errorf("expected duplicate email to return error type %q, got %q", domain.Conflict, domainErr.ErrorType)
 		}
 
-		if !errors.Is(clientErr.Err, repository.ErrEmailAlreadyRegistered) {
-			t.Errorf("expected duplicate email cause, got: %v", clientErr.Err)
+		if !errors.Is(domainErr, service.ErrUserAlreadyRegistered) {
+			t.Errorf("expected duplicate email cause, got: %v", domainErr.Err)
 		}
 	})
 }
@@ -364,12 +362,12 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected old refresh token to be rejected after rotation")
 	}
 
-	var clientErr *clienterrors.ClientErr
-	if !errors.As(err, &clientErr) {
-		t.Fatalf("expected old refresh token error to wrap a client error, got: %v", err)
+	var domainErr *domain.DomainError
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("expected old refresh token error to wrap a domain error, got: %v", err)
 	}
 
-	if clientErr.Code != http.StatusUnauthorized {
-		t.Errorf("expected old refresh token to return status code %d, got %d", http.StatusUnauthorized, clientErr.Code)
+	if domainErr.ErrorType != domain.Unauthorized {
+		t.Errorf("expected old refresh token to return error type %q, got %q", domain.Unauthorized, domainErr.ErrorType)
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
@@ -52,7 +51,7 @@ func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error
 
 	if err := s.userRepository.Save(ctx, user); err != nil {
 		if errors.Is(err, repository.ErrEmailAlreadyRegistered) {
-			return clienterrors.NewConflictError("user email is already registered", ErrUserAlreadyRegistered)
+			return domain.NewConflictError("user email is already registered", ErrUserAlreadyRegistered)
 		}
 
 		return fmt.Errorf("saving user to repository: %w", err)
@@ -68,11 +67,11 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 	}
 
 	if existingUser == nil {
-		return "", "", clienterrors.NewUnauthorizedError("invalid email or password", ErrUserNotRegistered)
+		return "", "", domain.NewUnauthorizedError("invalid email or password", ErrUserNotRegistered)
 	}
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
-		return "", "", clienterrors.NewUnauthorizedError("invalid email or password", ErrInvalidCredentials)
+		return "", "", domain.NewUnauthorizedError("invalid email or password", ErrInvalidCredentials)
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
@@ -33,7 +32,7 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, clienterrors.NewBadRequestError("invalid user id", ErrInvalidUserID)
+		return nil, domain.NewBadRequestError("invalid user id", ErrInvalidUserID)
 	}
 
 	user, err := s.userRepository.GetByID(ctx, uuid)
@@ -42,7 +41,7 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, 
 	}
 
 	if user == nil {
-		return nil, clienterrors.NewNotFoundError("user not found", ErrUserNotFound)
+		return nil, domain.NewNotFoundError("user not found", ErrUserNotFound)
 	}
 
 	return user, nil

@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
+	"github.com/m-bromo/go-auth-template/internal/domain"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/web/client_errors"
 )
 
 func HandleJSON(w http.ResponseWriter, code int, body any) {
@@ -23,6 +24,7 @@ func HandleJSON(w http.ResponseWriter, code int, body any) {
 func HandleError(w http.ResponseWriter, err error) {
 	var validationErr validator.ValidationErrors
 	var apiErr *clienterrors.ClientErr
+	var domainErr *domain.DomainError
 
 	if err == nil {
 		HandleJSON(w, http.StatusInternalServerError, nil)
@@ -37,6 +39,13 @@ func HandleError(w http.ResponseWriter, err error) {
 		return
 	}
 
+	if errors.As(err, &domainErr) {
+		apiErr = newClientErrorFromDomainError(domainErr)
+		slog.Warn("domain error", "error", domainErr)
+		HandleJSON(w, apiErr.Code, apiErr)
+		return
+	}
+
 	if errors.As(err, &apiErr) {
 		slog.Warn("client error", "error", apiErr.Err)
 		HandleJSON(w, apiErr.Code, apiErr)
@@ -46,4 +55,23 @@ func HandleError(w http.ResponseWriter, err error) {
 	HandleJSON(w, http.StatusInternalServerError, nil)
 	slog.Error("an unexpected internal error has occurred", "error", err)
 
+}
+
+func newClientErrorFromDomainError(err *domain.DomainError) *clienterrors.ClientErr {
+	switch err.ErrorType {
+	case domain.BadRequest:
+		return clienterrors.NewBadRequestError(err.Message, err)
+	case domain.Unauthorized:
+		return clienterrors.NewUnauthorizedError(err.Message, err)
+	case domain.Forbidden:
+		return clienterrors.NewForbiddenError(err.Message, err)
+	case domain.NotFound:
+		return clienterrors.NewNotFoundError(err.Message, err)
+	case domain.Conflict:
+		return clienterrors.NewConflictError(err.Message, err)
+	case domain.UnprocessableEntity:
+		return clienterrors.NewUnprocessableEntityError(err.Message, err)
+	default:
+		return clienterrors.NewUnprocessableEntityError(err.Message, err)
+	}
 }

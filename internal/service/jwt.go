@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/config"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
+	"github.com/m-bromo/go-auth-template/internal/domain"
 )
 
 var (
@@ -54,23 +54,28 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
 
 	if tokenString == "" {
-		return nil, clienterrors.NewUnauthorizedError("token string was not provided", ErrTokenNotProvided)
+		return nil, domain.NewUnauthorizedError("token string was not provided", ErrTokenNotProvided)
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, clienterrors.NewUnauthorizedError("invalid token signing method", ErrInvalidSigningMethod)
+			return nil, domain.NewUnauthorizedError("invalid token signing method", ErrInvalidSigningMethod)
 		}
 
 		return []byte(s.cfg.Jwt.PrivateKey), nil
 	})
 	if err != nil {
-		return nil, clienterrors.NewUnauthorizedError("invalid token", ErrInvalidToken)
+		var domainErr *domain.DomainError
+		if errors.As(err, &domainErr) {
+			return nil, fmt.Errorf("parsing access token: %w", domainErr)
+		}
+
+		return nil, domain.NewUnauthorizedError("invalid token", ErrInvalidToken)
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, clienterrors.NewUnauthorizedError("invalid token claims", ErrInvalidClaims)
+		return nil, domain.NewUnauthorizedError("invalid token claims", ErrInvalidClaims)
 	}
 
 	return claims, nil

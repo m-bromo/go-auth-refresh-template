@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	clienterrors "github.com/m-bromo/go-auth-template/internal/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
@@ -50,7 +49,7 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string) (string, string, error) {
 	tokenID, err := uuid.Parse(tokenIDString)
 	if err != nil {
-		return "", "", clienterrors.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
+		return "", "", domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
 	userID, err := s.refreshTokenRepository.Consume(ctx, tokenID)
@@ -59,7 +58,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 	}
 
 	if userID == "" {
-		return "", "", clienterrors.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
+		return "", "", domain.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
 	}
 
 	userIDString, err := uuid.Parse(userID)
@@ -87,7 +86,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 func (s *refreshTokenService) Revoke(ctx context.Context, tokenIDString string) error {
 	tokenID, err := uuid.Parse(tokenIDString)
 	if err != nil {
-		return clienterrors.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
+		return domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
 	if err := s.refreshTokenRepository.Delete(ctx, tokenID); err != nil {
