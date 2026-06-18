@@ -20,24 +20,27 @@ var (
 type AuthService interface {
 	RegisterUser(ctx context.Context, user *domain.User) error
 	Login(ctx context.Context, user *domain.User) (string, string, error)
-	LoginWithOtp(ctx context.Context, email string) (string, string, error)
+	LoginWithOtp(ctx context.Context, email string, code string) (string, string, error)
 }
 
 type authService struct {
 	userRepository      repository.UserRepository
 	jwtService          JwtService
 	refreshTokenService RefreshTokenService
+	otpService          OtpService
 }
 
 func NewAuthService(
 	userRepository repository.UserRepository,
 	jwtService JwtService,
 	refreshTokenService RefreshTokenService,
+	otpService OtpService,
 ) AuthService {
 	return &authService{
 		userRepository:      userRepository,
 		jwtService:          jwtService,
 		refreshTokenService: refreshTokenService,
+		otpService:          otpService,
 	}
 }
 
@@ -88,7 +91,7 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 	return accessToken, refreshToken.ID.String(), nil
 }
 
-func (s *authService) LoginWithOtp(ctx context.Context, email string) (string, string, error) {
+func (s *authService) LoginWithOtp(ctx context.Context, email string, code string) (string, string, error) {
 	existingUser, err := s.userRepository.GetByEmail(ctx, email)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching user by email: %w", err)
@@ -96,6 +99,10 @@ func (s *authService) LoginWithOtp(ctx context.Context, email string) (string, s
 
 	if existingUser == nil {
 		return "", "", domain.NewUnauthorizedError("invalid email or otp code", ErrUserNotRegistered)
+	}
+
+	if err := s.otpService.VerifyCode(ctx, code, email); err != nil {
+		return "", "", fmt.Errorf("verifying otp code: %w", err)
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)

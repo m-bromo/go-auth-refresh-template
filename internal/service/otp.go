@@ -31,7 +31,7 @@ type otpService struct {
 	cfg            *config.Config
 }
 
-func NewOtpServic(
+func NewOtpService(
 	otpRepository repository.OtpRepository,
 	userRepository repository.UserRepository,
 	emailSender email.EmailSender,

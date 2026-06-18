@@ -24,6 +24,8 @@ import (
 	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
+	"github.com/m-bromo/go-auth-template/internal/infra/email"
+	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
 )
@@ -119,11 +121,14 @@ func TestRegisterUser_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
+	emailSender := email.NewEmailSender(cfg)
+	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
 	jwtService := service.NewJwtService(cfg)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
 
 	t.Run("should register a user successfully", func(t *testing.T) {
 		user := &domain.User{
@@ -190,11 +195,14 @@ func TestLogin_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
+	emailSender := email.NewEmailSender(cfg)
+	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
 	jwtService := service.NewJwtService(cfg)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
 
 	user := &domain.User{
 		Email:    "login@test.com",
@@ -252,6 +260,95 @@ func TestLogin_Integration(t *testing.T) {
 	})
 }
 
+func TestLoginWithOtp_Integration(t *testing.T) {
+	ctx := context.Background()
+
+	cfg, err := config.NewConfig("../.env")
+	if err != nil {
+		log.Fatalf("failed to setup config: %v", err)
+	}
+
+	querier := sqlc.New(db)
+	emailSender := email.NewEmailSender(cfg)
+	otpRepository := repository.NewOtpRepository(redisClient, cfg)
+	userRepository := repository.NewUserRepository(querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	jwtService := service.NewJwtService(cfg)
+	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+
+	user := &domain.User{
+		Email:    "otp-login@test.com",
+		Username: "otpLoginUser",
+		Password: "password@123",
+	}
+
+	if err := authService.RegisterUser(ctx, user); err != nil {
+		t.Fatalf("failed to setup user for otp login test: %v", err)
+	}
+
+	code := "123456"
+	hashedCode := secure.HashOTP(code, []byte(cfg.OTP.Secret))
+	if err := otpRepository.SaveCode(ctx, user.Email, hashedCode); err != nil {
+		t.Fatalf("failed to setup otp code for login test: %v", err)
+	}
+
+	accessToken, refreshToken, err := authService.LoginWithOtp(ctx, user.Email, code)
+	if err != nil {
+		t.Fatalf("did not expect an error when logging in with otp, but got: %v", err)
+	}
+
+	if accessToken == "" {
+		t.Errorf("expected an access token, but got empty string")
+	}
+
+	if refreshToken == "" {
+		t.Fatalf("expected a refresh token, but got empty string")
+	}
+
+	refreshTokenID, err := uuid.Parse(refreshToken)
+	if err != nil {
+		t.Fatalf("expected refresh token to be a valid UUID, got %q: %v", refreshToken, err)
+	}
+
+	userID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	if err != nil {
+		t.Fatalf("failed to fetch refresh token from redis: %v", err)
+	}
+
+	if userID == "" {
+		t.Fatalf("expected refresh token to be stored in redis")
+	}
+
+	savedCode, err := otpRepository.GetCodeByEmail(ctx, user.Email)
+	if err != nil {
+		t.Fatalf("failed to fetch otp code from redis: %v", err)
+	}
+
+	if savedCode != "" {
+		t.Errorf("expected otp code to be deleted after successful login")
+	}
+
+	_, _, err = authService.LoginWithOtp(ctx, user.Email, code)
+	if err == nil {
+		t.Fatalf("expected consumed otp code to be rejected")
+	}
+
+	var domainErr *domain.DomainError
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("expected consumed otp error to wrap a domain error, got: %v", err)
+	}
+
+	if domainErr.ErrorType != domain.BadRequest {
+		t.Errorf("expected consumed otp to return error type %q, got %q", domain.BadRequest, domainErr.ErrorType)
+	}
+
+	if !errors.Is(domainErr, service.ErrOtpCodeNotFound) {
+		t.Errorf("expected consumed otp cause, got: %v", domainErr.Err)
+	}
+}
+
 func TestRefreshToken_Integration(t *testing.T) {
 	ctx := context.Background()
 
@@ -261,11 +358,14 @@ func TestRefreshToken_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
+	emailSender := email.NewEmailSender(cfg)
+	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
 	jwtService := service.NewJwtService(cfg)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
+	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
 
 	password := "password@123"
 	user := &domain.User{

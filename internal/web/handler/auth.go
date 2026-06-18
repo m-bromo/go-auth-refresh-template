@@ -117,12 +117,7 @@ func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.otpService.VerifyCode(r.Context(), payload.Code, payload.Email); err != nil {
-		HandleError(w, err)
-		return
-	}
-
-	accessToken, refreshToken, err := h.authService.LoginWithOtp(r.Context(), payload.Email)
+	accessToken, refreshToken, err := h.authService.LoginWithOtp(r.Context(), payload.Email, payload.Code)
 	if err != nil {
 		HandleError(w, err)
 		return
