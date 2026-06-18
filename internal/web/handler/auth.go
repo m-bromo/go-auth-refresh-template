@@ -14,18 +14,21 @@ import (
 type AuthHandler struct {
 	authService         service.AuthService
 	refreshTokenService service.RefreshTokenService
+	otpService          service.OtpService
 	cookieManager       *cookie.CookieManager
 }
 
 func NewAuthHandler(
 	authService service.AuthService,
 	refreshTokenService service.RefreshTokenService,
+	otpService service.OtpService,
 	cookieManager *cookie.CookieManager,
 ) *AuthHandler {
 	return &AuthHandler{
 		authService:         authService,
 		refreshTokenService: refreshTokenService,
 		cookieManager:       cookieManager,
+		otpService:          otpService,
 	}
 }
 
@@ -69,6 +72,57 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Email:    payload.Email,
 		Password: payload.Password,
 	})
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+	h.cookieManager.SetCookie(w, refreshToken)
+
+	response := &models.LoginResponse{
+		AccessToken: accessToken,
+	}
+
+	HandleJSON(w, http.StatusOK, response)
+}
+
+func (h *AuthHandler) SendOtpLoginCode(w http.ResponseWriter, r *http.Request) {
+	var payload models.SendOtpLoginCodePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := validation.Validator.Struct(payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := h.otpService.SendCode(r.Context(), payload.Email); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
+	var payload models.LoginWithOtpPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := validation.Validator.Struct(payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := h.otpService.VerifyCode(r.Context(), payload.Code, payload.Email); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	accessToken, refreshToken, err := h.authService.LoginWithOtp(r.Context(), payload.Email)
 	if err != nil {
 		HandleError(w, err)
 		return

@@ -20,6 +20,7 @@ var (
 type AuthService interface {
 	RegisterUser(ctx context.Context, user *domain.User) error
 	Login(ctx context.Context, user *domain.User) (string, string, error)
+	LoginWithOtp(ctx context.Context, email string) (string, string, error)
 }
 
 type authService struct {
@@ -72,6 +73,29 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
 		return "", "", domain.NewUnauthorizedError("invalid email or password", ErrInvalidCredentials)
+	}
+
+	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("generating access token: %w", err)
+	}
+
+	refreshToken, err := s.refreshTokenService.GenerateRefreshToken(ctx, existingUser.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("generating refresh token: %w", err)
+	}
+
+	return accessToken, refreshToken.ID.String(), nil
+}
+
+func (s *authService) LoginWithOtp(ctx context.Context, email string) (string, string, error) {
+	existingUser, err := s.userRepository.GetByEmail(ctx, email)
+	if err != nil {
+		return "", "", fmt.Errorf("fetching user by email: %w", err)
+	}
+
+	if existingUser == nil {
+		return "", "", domain.NewUnauthorizedError("invalid email or otp code", ErrUserNotRegistered)
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)

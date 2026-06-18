@@ -18,6 +18,8 @@ type Config struct {
 	Jwt          Jwt
 	Redis        Redis
 	RefreshToken RefreshToken
+	OTP          OTP
+	Resend       Resend
 }
 
 type API struct {
@@ -46,6 +48,17 @@ type Jwt struct {
 
 type RefreshToken struct {
 	Duration time.Duration `env:"REFRESH_TOKEN_DURATION,default=168h"`
+}
+
+type OTP struct {
+	MaxValue int           `env:"OTP_MAX_VALUE,default=1000000"`
+	Secret   string        `env:"OTP_SECRET"`
+	Duration time.Duration `env:"OTP_DURATION,default=2m"`
+}
+
+type Resend struct {
+	ApiKey string `env:"RESEND_API_KEY"`
+	Email  string `env:"RESEND_EMAIL,default=example@email.com"`
 }
 
 func (c *Config) IsDevelopment() bool {

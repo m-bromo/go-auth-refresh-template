@@ -27,6 +27,14 @@ func (e *DomainError) Unwrap() error {
 	return e.Err
 }
 
+func NewDomainError(message string, errType ErrorType, errs ...error) *DomainError {
+	return &DomainError{
+		Err:       errors.Join(errs...),
+		ErrorType: errType,
+		Message:   message,
+	}
+}
+
 func NewBadRequestError(message string, errs ...error) *DomainError {
 	return &DomainError{
 		Err:       errors.Join(errs...),

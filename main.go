@@ -9,6 +9,7 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/infra/cache"
 	"github.com/m-bromo/go-auth-template/internal/infra/database"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
+	"github.com/m-bromo/go-auth-template/internal/infra/email"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
 	"github.com/m-bromo/go-auth-template/internal/web/cookie"
@@ -34,15 +35,18 @@ func main() {
 	srv := server.New()
 	querier := sqlc.New(db)
 	redisClient := cache.NewRedisClient(cfg)
+	emailSender := email.NewEmailSender(cfg)
 	userRepository := repository.NewUserRepository(querier)
+	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
 	userService := service.NewUserService(userRepository)
 	jwtService := service.NewJwtService(cfg)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
 	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService)
+	otpService := service.NewOtpServic(otpRepository, userRepository, emailSender, cfg)
 	cookieManager := cookie.NewCookieManager(cfg)
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
-	authHandler := handler.NewAuthHandler(authService, refreshTokenService, cookieManager)
+	authHandler := handler.NewAuthHandler(authService, refreshTokenService, otpService, cookieManager)
 	userHandler := handler.NewUserHandler(userService)
 
 	routes.SetupRoutes(srv, routes.Dependencies{

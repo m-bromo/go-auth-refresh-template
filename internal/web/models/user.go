@@ -11,6 +11,15 @@ type LoginPayload struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type SendOtpLoginCodePayload struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type LoginWithOtpPayload struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required"`
+}
+
 type LoginResponse struct {
 	AccessToken string `json:"access_token"`
 }
