@@ -5,8 +5,27 @@
 package sqlc
 
 import (
+	"database/sql"
+	"time"
+
 	"github.com/google/uuid"
 )
+
+type PasswordResetToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	TokenHash string
+	ExpiresAt time.Time
+	UsedAt    sql.NullTime
+	CreatedAt time.Time
+}
+
+type RefreshToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt time.Time
+	ExpiresAt time.Time
+}
 
 type User struct {
 	ID       uuid.UUID

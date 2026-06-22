@@ -54,7 +54,10 @@ func TestAuthService_RegisterUser(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
+				testConfig(),
+				&mocks.UnitOfWork{},
 				userRepository,
+				&mocks.ResetTokenRepository{},
 				&mocks.JwtService{},
 				&mocks.RefreshTokenService{},
 				&mocks.OtpService{},
@@ -210,7 +213,10 @@ func TestAuthService_Login(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
+				testConfig(),
+				&mocks.UnitOfWork{},
 				userRepository,
+				&mocks.ResetTokenRepository{},
 				jwtService,
 				refreshTokenService,
 				&mocks.OtpService{},
@@ -327,7 +333,7 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 				},
 			}
 			otpService := &mocks.OtpService{
-				VerifyCodeFunc: func(ctx context.Context, code string, email string) error {
+				VerifyLoginCodeFunc: func(ctx context.Context, code string, email string) error {
 					return tt.verifyCodeErr
 				},
 			}
@@ -345,7 +351,10 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
+				testConfig(),
+				&mocks.UnitOfWork{},
 				userRepository,
+				&mocks.ResetTokenRepository{},
 				jwtService,
 				refreshTokenService,
 				otpService,
@@ -378,6 +387,211 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 
 			if refreshToken != tt.wantRefreshToken {
 				t.Errorf("refreshToken = %q, want %q", refreshToken, tt.wantRefreshToken)
+			}
+		})
+	}
+}
+
+func TestAuthService_ResetPassword(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	resetToken := "reset-token"
+	resetTokenHash := secure.HashResetToken(resetToken, []byte(testConfig().OTP.Secret))
+	repositoryErr := errors.New("repository failed")
+	updateErr := errors.New("update failed")
+	revokeTokensErr := errors.New("revoke tokens failed")
+
+	tests := []struct {
+		name                    string
+		consumedToken           *domain.ResetToken
+		consumeErr              error
+		unitOfWorkErr           error
+		updatePasswordErr       error
+		revokeTokensErr         error
+		wantErr                 error
+		wantErrType             domain.ErrorType
+		wantWrapped             string
+		wantUnitOfWorkCalls     int
+		wantConsumeCalls        int
+		wantUpdatePasswordCalls int
+		wantRevokeTokensCalls   int
+	}{
+		{
+			name: "updates password with consumed reset token",
+			consumedToken: &domain.ResetToken{
+				ID:        uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+				UserID:    userID,
+				TokenHash: resetTokenHash,
+			},
+			wantUnitOfWorkCalls:     1,
+			wantConsumeCalls:        1,
+			wantUpdatePasswordCalls: 1,
+			wantRevokeTokensCalls:   1,
+		},
+		{
+			name:                "wraps consume error",
+			consumeErr:          repositoryErr,
+			wantWrapped:         "consuming reset token",
+			wantUnitOfWorkCalls: 1,
+			wantConsumeCalls:    1,
+		},
+		{
+			name:                "wraps unit of work error",
+			unitOfWorkErr:       repositoryErr,
+			wantWrapped:         "running reset password transaction",
+			wantUnitOfWorkCalls: 1,
+		},
+		{
+			name:                "rejects missing reset token",
+			wantErr:             service.ErrInvalidResetToken,
+			wantErrType:         domain.Unauthorized,
+			wantUnitOfWorkCalls: 1,
+			wantConsumeCalls:    1,
+		},
+		{
+			name: "wraps password update error",
+			consumedToken: &domain.ResetToken{
+				ID:        uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+				UserID:    userID,
+				TokenHash: resetTokenHash,
+			},
+			updatePasswordErr:       updateErr,
+			wantWrapped:             "updating user password",
+			wantUnitOfWorkCalls:     1,
+			wantConsumeCalls:        1,
+			wantUpdatePasswordCalls: 1,
+		},
+		{
+			name: "wraps refresh token revocation error",
+			consumedToken: &domain.ResetToken{
+				ID:        uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+				UserID:    userID,
+				TokenHash: resetTokenHash,
+			},
+			revokeTokensErr:         revokeTokensErr,
+			wantWrapped:             "revoking user tokens",
+			wantUnitOfWorkCalls:     1,
+			wantConsumeCalls:        1,
+			wantUpdatePasswordCalls: 1,
+			wantRevokeTokensCalls:   1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			resetTokenRepository := &mocks.ResetTokenRepository{
+				ConsumeFunc: func(ctx context.Context, tokenHash string) (*domain.ResetToken, error) {
+					return tt.consumedToken, tt.consumeErr
+				},
+			}
+			userRepository := &mocks.UserRepository{
+				UpdatePasswordFunc: func(ctx context.Context, userID uuid.UUID, password string) error {
+					return tt.updatePasswordErr
+				},
+			}
+			refreshTokenRepository := &mocks.RefreshTokenRepository{
+				DeleteByUserIDFunc: func(ctx context.Context, userID uuid.UUID) error {
+					return tt.revokeTokensErr
+				},
+			}
+			unitOfWork := &mocks.UnitOfWork{
+				Repos: repository.Repositories{
+					UserRepository:         userRepository,
+					ResetTokenRepository:   resetTokenRepository,
+					RefreshTokenRepository: refreshTokenRepository,
+				},
+				ExecFunc: func(ctx context.Context, fn func(repos repository.Repositories) error) error {
+					if tt.unitOfWorkErr != nil {
+						return tt.unitOfWorkErr
+					}
+
+					return fn(repository.Repositories{
+						UserRepository:         userRepository,
+						ResetTokenRepository:   resetTokenRepository,
+						RefreshTokenRepository: refreshTokenRepository,
+					})
+				},
+			}
+			authService := service.NewAuthService(
+				testConfig(),
+				unitOfWork,
+				userRepository,
+				resetTokenRepository,
+				&mocks.JwtService{},
+				&mocks.RefreshTokenService{},
+				&mocks.OtpService{},
+			)
+
+			err := authService.ResetPassword(t.Context(), resetToken, "new-password@123")
+
+			if unitOfWork.ExecCalls != tt.wantUnitOfWorkCalls {
+				t.Errorf("UnitOfWork.Exec() calls = %d, want %d", unitOfWork.ExecCalls, tt.wantUnitOfWorkCalls)
+			}
+
+			if resetTokenRepository.ConsumeCalls != tt.wantConsumeCalls {
+				t.Errorf("Consume() calls = %d, want %d", resetTokenRepository.ConsumeCalls, tt.wantConsumeCalls)
+			}
+
+			if tt.wantConsumeCalls > 0 && resetTokenRepository.LastTokenHash != resetTokenHash {
+				t.Errorf("Consume() token hash = %q, want %q", resetTokenRepository.LastTokenHash, resetTokenHash)
+			}
+
+			if refreshTokenRepository.DeleteByUserIDCalls != tt.wantRevokeTokensCalls {
+				t.Errorf(
+					"DeleteByUserID() calls = %d, want %d",
+					refreshTokenRepository.DeleteByUserIDCalls,
+					tt.wantRevokeTokensCalls,
+				)
+			}
+
+			if tt.wantErr != nil {
+				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				return
+			}
+
+			if tt.wantWrapped != "" {
+				assertWrappedError(t, err, tt.wantWrapped, firstNonNil(
+					tt.consumeErr,
+					tt.unitOfWorkErr,
+					tt.updatePasswordErr,
+					tt.revokeTokensErr,
+				))
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ResetPassword() error = %v, want nil", err)
+			}
+
+			if userRepository.UpdatePasswordCalls != tt.wantUpdatePasswordCalls {
+				t.Fatalf(
+					"UpdatePassword() calls = %d, want %d",
+					userRepository.UpdatePasswordCalls,
+					tt.wantUpdatePasswordCalls,
+				)
+			}
+
+			if userRepository.LastUpdatedUserID != userID {
+				t.Errorf("UpdatePassword() user ID = %s, want %s", userRepository.LastUpdatedUserID, userID)
+			}
+
+			if userRepository.LastUpdatedPassword == "new-password@123" {
+				t.Errorf("updated password was not hashed")
+			}
+
+			if !secure.CheckPassword(userRepository.LastUpdatedPassword, "new-password@123") {
+				t.Errorf("updated password hash does not match original password")
+			}
+
+			if refreshTokenRepository.LastDeletedUserID != userID {
+				t.Errorf(
+					"DeleteByUserID() user ID = %s, want %s",
+					refreshTokenRepository.LastDeletedUserID,
+					userID,
+				)
 			}
 		})
 	}

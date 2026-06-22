@@ -6,9 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
-type RefreshToken struct {
+type ResetToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	CreatedAt time.Time
+	TokenHash string
 	ExpiresAt time.Time
+	UsedAt    time.Time
+	CreatedAt time.Time
 }

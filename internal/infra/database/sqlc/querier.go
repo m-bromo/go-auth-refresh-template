@@ -11,9 +11,20 @@ import (
 )
 
 type Querier interface {
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (PasswordResetToken, error)
+	ConsumeRefreshToken(ctx context.Context, id uuid.UUID) (RefreshToken, error)
+	DeletePasswordResetTokensByID(ctx context.Context, id uuid.UUID) error
+	DeletePasswordResetTokensByUserID(ctx context.Context, userID uuid.UUID) error
+	DeleteRefreshToken(ctx context.Context, id uuid.UUID) error
+	DeleteRefreshTokensByUserID(ctx context.Context, userID uuid.UUID) error
 	GetByEmail(ctx context.Context, email string) (User, error)
+	GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (RefreshToken, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetValidPasswordResetToken(ctx context.Context, tokenHash string) (PasswordResetToken, error)
+	SavePasswordResetToken(ctx context.Context, arg SavePasswordResetTokenParams) error
+	SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error
 	SaveUser(ctx context.Context, arg SaveUserParams) error
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 
 var _ Querier = (*Queries)(nil)

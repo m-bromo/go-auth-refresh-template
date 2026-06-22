@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
@@ -17,6 +19,7 @@ type RefreshTokenService interface {
 }
 
 type refreshTokenService struct {
+	cfg                    *config.Config
 	refreshTokenRepository repository.RefreshTokenRepository
 	jwtService             JwtService
 }
@@ -26,8 +29,9 @@ var (
 	ErrRefreshTokenNotFoundOrExpired = errors.New("refresh token not found or expired")
 )
 
-func NewRefreshTokenService(refreshTokenRepository repository.RefreshTokenRepository, jwtService JwtService) RefreshTokenService {
+func NewRefreshTokenService(cfg *config.Config, refreshTokenRepository repository.RefreshTokenRepository, jwtService JwtService) RefreshTokenService {
 	return &refreshTokenService{
+		cfg:                    cfg,
 		refreshTokenRepository: refreshTokenRepository,
 		jwtService:             jwtService,
 	}
@@ -35,8 +39,10 @@ func NewRefreshTokenService(refreshTokenRepository repository.RefreshTokenReposi
 
 func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error) {
 	refreshToken := domain.RefreshToken{
-		ID:     uuid.New(),
-		UserID: userID,
+		ID:        uuid.New(),
+		UserID:    userID,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
 	}
 
 	if err := s.refreshTokenRepository.Save(ctx, &refreshToken); err != nil {
@@ -67,8 +73,10 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 	}
 
 	newToken := domain.RefreshToken{
-		ID:     uuid.New(),
-		UserID: userIDString,
+		ID:        uuid.New(),
+		UserID:    userIDString,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
 	}
 
 	if err := s.refreshTokenRepository.Save(ctx, &newToken); err != nil {

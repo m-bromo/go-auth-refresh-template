@@ -19,10 +19,12 @@ type UserRepository interface {
 	Save(ctx context.Context, user *domain.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+	UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error
 }
 
 type userRepository struct {
 	querier sqlc.Querier
+	tx      *sql.Tx
 }
 
 func NewUserRepository(querier sqlc.Querier) UserRepository {
@@ -85,4 +87,15 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.
 		Password: user.Password,
 		Username: user.Username,
 	}, nil
+}
+
+func (r *userRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error {
+	if err := r.querier.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
+		ID:       userID,
+		Password: password,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

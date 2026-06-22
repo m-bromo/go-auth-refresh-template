@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/mocks"
@@ -92,6 +93,7 @@ func TestOtpService_SendCode(t *testing.T) {
 			otpService := service.NewOtpService(
 				otpRepository,
 				userRepository,
+				&mocks.ResetTokenRepository{},
 				emailSender,
 				testConfig(),
 			)
@@ -123,57 +125,41 @@ func TestOtpService_SendCode(t *testing.T) {
 	}
 }
 
-func TestOtpService_VerifyCode(t *testing.T) {
+func TestOtpService_VerifyLoginCode(t *testing.T) {
 	t.Parallel()
 
 	repositoryErr := errors.New("repository failed")
-	deleteErr := errors.New("delete failed")
 	validCode := "123456"
-	hashedCode := secure.HashOTP(validCode, []byte(testConfig().OTP.Secret))
 
 	tests := []struct {
-		name            string
-		code            string
-		foundCode       string
-		getCodeErr      error
-		deleteCodeErr   error
-		wantErr         error
-		wantErrType     domain.ErrorType
-		wantWrapped     string
-		wantDeleteCalls int
+		name             string
+		code             string
+		consumed         bool
+		consumeErr       error
+		wantErr          error
+		wantErrType      domain.ErrorType
+		wantWrapped      string
+		wantConsumeCalls int
 	}{
 		{
-			name:            "deletes code when it matches",
-			code:            validCode,
-			foundCode:       hashedCode,
-			wantDeleteCalls: 1,
+			name:             "consumes code when it matches",
+			code:             validCode,
+			consumed:         true,
+			wantConsumeCalls: 1,
 		},
 		{
-			name:        "wraps repository error",
-			code:        validCode,
-			getCodeErr:  repositoryErr,
-			wantWrapped: "getting otp code",
+			name:             "wraps repository error",
+			code:             validCode,
+			consumeErr:       repositoryErr,
+			wantWrapped:      "consuming otp code",
+			wantConsumeCalls: 1,
 		},
 		{
-			name:        "rejects missing code",
-			code:        validCode,
-			wantErr:     service.ErrOtpCodeNotFound,
-			wantErrType: domain.BadRequest,
-		},
-		{
-			name:        "rejects invalid code",
-			code:        "000000",
-			foundCode:   hashedCode,
-			wantErr:     service.ErrInvalidOtpCode,
-			wantErrType: domain.NotFound,
-		},
-		{
-			name:            "wraps delete error",
-			code:            validCode,
-			foundCode:       hashedCode,
-			deleteCodeErr:   deleteErr,
-			wantWrapped:     "deleting otp code",
-			wantDeleteCalls: 1,
+			name:             "rejects not consumed code",
+			code:             "000000",
+			wantErr:          service.ErrInvalidOtpCode,
+			wantErrType:      domain.NotFound,
+			wantConsumeCalls: 1,
 		},
 	}
 
@@ -182,32 +168,210 @@ func TestOtpService_VerifyCode(t *testing.T) {
 			t.Parallel()
 
 			otpRepository := &mocks.OtpRepository{
-				GetCodeByEmailFunc: func(ctx context.Context, email string) (string, error) {
-					return tt.foundCode, tt.getCodeErr
-				},
-				DeleteCodeFunc: func(ctx context.Context, email string) error {
-					return tt.deleteCodeErr
+				ConsumeCodeIfMatchesFunc: func(ctx context.Context, email string, code string) (bool, error) {
+					return tt.consumed, tt.consumeErr
 				},
 			}
 			otpService := service.NewOtpService(
 				otpRepository,
 				&mocks.UserRepository{},
+				&mocks.ResetTokenRepository{},
 				&mocks.EmailSender{},
 				testConfig(),
 			)
 
-			err := otpService.VerifyCode(t.Context(), tt.code, "user@test.com")
+			err := otpService.VerifyLoginCode(t.Context(), tt.code, "user@test.com")
 
 			if tt.wantErr != nil {
 				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
 			} else if tt.wantWrapped != "" {
-				assertWrappedError(t, err, tt.wantWrapped, firstNonNil(tt.getCodeErr, tt.deleteCodeErr))
+				assertWrappedError(t, err, tt.wantWrapped, tt.consumeErr)
 			} else if err != nil {
-				t.Fatalf("VerifyCode() error = %v, want nil", err)
+				t.Fatalf("VerifyLoginCode() error = %v, want nil", err)
 			}
 
-			if otpRepository.DeleteCodeCalls != tt.wantDeleteCalls {
-				t.Errorf("DeleteCode() calls = %d, want %d", otpRepository.DeleteCodeCalls, tt.wantDeleteCalls)
+			if otpRepository.ConsumeCodeIfMatchesCalls != tt.wantConsumeCalls {
+				t.Errorf(
+					"ConsumeCodeIfMatches() calls = %d, want %d",
+					otpRepository.ConsumeCodeIfMatchesCalls,
+					tt.wantConsumeCalls,
+				)
+			}
+
+			wantConsumedCode := secure.HashOTP(tt.code, []byte(testConfig().OTP.Secret))
+			if tt.wantConsumeCalls > 0 && otpRepository.LastConsumedCode != wantConsumedCode {
+				t.Errorf("ConsumeCodeIfMatches() code = %q, want %q", otpRepository.LastConsumedCode, wantConsumedCode)
+			}
+		})
+	}
+}
+
+func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
+	t.Parallel()
+
+	repositoryErr := errors.New("repository failed")
+	userRepositoryErr := errors.New("user repository failed")
+	saveResetTokenErr := errors.New("save reset token failed")
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	validCode := "123456"
+
+	tests := []struct {
+		name             string
+		code             string
+		user             *domain.User
+		consumed         bool
+		consumeErr       error
+		getUserErr       error
+		saveResetErr     error
+		wantErr          error
+		wantErrType      domain.ErrorType
+		wantWrapped      string
+		wantConsumeCalls int
+		wantSaveCalls    int
+		wantResetToken   bool
+	}{
+		{
+			name:             "consumes code and saves reset token when it matches",
+			code:             validCode,
+			user:             &domain.User{ID: userID, Email: "user@test.com"},
+			consumed:         true,
+			wantConsumeCalls: 1,
+			wantSaveCalls:    1,
+			wantResetToken:   true,
+		},
+		{
+			name:             "wraps repository error",
+			code:             validCode,
+			consumeErr:       repositoryErr,
+			wantWrapped:      "consuming otp code",
+			wantConsumeCalls: 1,
+		},
+		{
+			name:             "rejects not consumed code",
+			code:             "000000",
+			wantErr:          service.ErrInvalidOtpCode,
+			wantErrType:      domain.NotFound,
+			wantConsumeCalls: 1,
+		},
+		{
+			name:             "wraps user lookup error",
+			code:             validCode,
+			consumed:         true,
+			getUserErr:       userRepositoryErr,
+			wantWrapped:      "fetching user by email",
+			wantConsumeCalls: 1,
+		},
+		{
+			name:             "rejects missing user",
+			code:             validCode,
+			consumed:         true,
+			wantErr:          service.ErrUserNotRegistered,
+			wantErrType:      domain.Unauthorized,
+			wantConsumeCalls: 1,
+		},
+		{
+			name:             "wraps reset token persistence error",
+			code:             validCode,
+			user:             &domain.User{ID: userID, Email: "user@test.com"},
+			consumed:         true,
+			saveResetErr:     saveResetTokenErr,
+			wantWrapped:      "saving reset token",
+			wantConsumeCalls: 1,
+			wantSaveCalls:    1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			otpRepository := &mocks.OtpRepository{
+				ConsumeCodeIfMatchesFunc: func(ctx context.Context, email string, code string) (bool, error) {
+					return tt.consumed, tt.consumeErr
+				},
+			}
+			userRepository := &mocks.UserRepository{
+				GetByEmailFunc: func(ctx context.Context, email string) (*domain.User, error) {
+					return tt.user, tt.getUserErr
+				},
+			}
+			resetTokenRepository := &mocks.ResetTokenRepository{
+				SaveFunc: func(ctx context.Context, token *domain.ResetToken) error {
+					return tt.saveResetErr
+				},
+			}
+			otpService := service.NewOtpService(
+				otpRepository,
+				userRepository,
+				resetTokenRepository,
+				&mocks.EmailSender{},
+				testConfig(),
+			)
+
+			resetToken, err := otpService.VerifyPasswordResetCode(t.Context(), tt.code, "user@test.com")
+
+			if tt.wantErr != nil {
+				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+			} else if tt.wantWrapped != "" {
+				assertWrappedError(
+					t,
+					err,
+					tt.wantWrapped,
+					firstNonNil(tt.consumeErr, tt.getUserErr, tt.saveResetErr),
+				)
+			} else if err != nil {
+				t.Fatalf("VerifyPasswordResetCode() error = %v, want nil", err)
+			}
+
+			if otpRepository.ConsumeCodeIfMatchesCalls != tt.wantConsumeCalls {
+				t.Errorf(
+					"ConsumeCodeIfMatches() calls = %d, want %d",
+					otpRepository.ConsumeCodeIfMatchesCalls,
+					tt.wantConsumeCalls,
+				)
+			}
+
+			wantConsumedCode := secure.HashOTP(tt.code, []byte(testConfig().OTP.Secret))
+			if tt.wantConsumeCalls > 0 && otpRepository.LastConsumedCode != wantConsumedCode {
+				t.Errorf("ConsumeCodeIfMatches() code = %q, want %q", otpRepository.LastConsumedCode, wantConsumedCode)
+			}
+
+			if resetTokenRepository.SaveCalls != tt.wantSaveCalls {
+				t.Errorf("Save() reset token calls = %d, want %d", resetTokenRepository.SaveCalls, tt.wantSaveCalls)
+			}
+
+			if tt.wantResetToken {
+				if resetToken == "" {
+					t.Fatalf("VerifyPasswordResetCode() reset token is empty")
+				}
+
+				if resetTokenRepository.LastSavedToken == nil {
+					t.Fatalf("saved reset token is nil")
+				}
+
+				if resetTokenRepository.LastSavedToken.UserID != userID {
+					t.Errorf("saved reset token user ID = %s, want %s", resetTokenRepository.LastSavedToken.UserID, userID)
+				}
+
+				if resetTokenRepository.LastSavedToken.ExpiresAt.IsZero() {
+					t.Errorf("saved reset token expiration is zero")
+				}
+
+				if resetTokenRepository.LastSavedToken.TokenHash == "" {
+					t.Fatalf("saved reset token is empty")
+				}
+
+				if resetTokenRepository.LastSavedToken.TokenHash == resetToken {
+					t.Errorf("saved reset token should be hashed, got raw returned token")
+				}
+
+				if !secure.VerifyResetToken(
+					resetToken,
+					resetTokenRepository.LastSavedToken.TokenHash,
+					[]byte(testConfig().OTP.Secret),
+				) {
+					t.Errorf("saved reset token hash does not match returned token")
+				}
 			}
 		})
 	}
@@ -218,6 +382,9 @@ func testConfig() *config.Config {
 		Jwt: config.Jwt{
 			PrivateKey: "test-secret",
 			Duration:   15 * time.Minute,
+		},
+		RefreshToken: config.RefreshToken{
+			Duration: 24 * time.Hour,
 		},
 		OTP: config.OTP{
 			MaxValue: 1000000,

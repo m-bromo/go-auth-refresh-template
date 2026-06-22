@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/email"
@@ -21,27 +23,31 @@ var (
 
 type OtpService interface {
 	SendCode(ctx context.Context, email string) error
-	VerifyCode(ctx context.Context, code string, email string) error
+	VerifyLoginCode(ctx context.Context, code string, email string) error
+	VerifyPasswordResetCode(ctx context.Context, code string, email string) (string, error)
 }
 
 type otpService struct {
-	otpRepository  repository.OtpRepository
-	userRepository repository.UserRepository
-	emailSender    email.EmailSender
-	cfg            *config.Config
+	otpRepository        repository.OtpRepository
+	userRepository       repository.UserRepository
+	resetTokenRepository repository.ResetTokenRepository
+	emailSender          email.EmailSender
+	cfg                  *config.Config
 }
 
 func NewOtpService(
 	otpRepository repository.OtpRepository,
 	userRepository repository.UserRepository,
+	resetTokenRepository repository.ResetTokenRepository,
 	emailSender email.EmailSender,
 	cfg *config.Config,
 ) OtpService {
 	return &otpService{
-		otpRepository:  otpRepository,
-		userRepository: userRepository,
-		emailSender:    emailSender,
-		cfg:            cfg,
+		otpRepository:        otpRepository,
+		userRepository:       userRepository,
+		resetTokenRepository: resetTokenRepository,
+		emailSender:          emailSender,
+		cfg:                  cfg,
 	}
 }
 
@@ -73,23 +79,58 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 	return nil
 }
 
-func (s *otpService) VerifyCode(ctx context.Context, code string, email string) error {
-	foundCode, err := s.otpRepository.GetCodeByEmail(ctx, email)
+func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email string) error {
+	hashedCode := secure.HashOTP(code, []byte(s.cfg.OTP.Secret))
+	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
-		return fmt.Errorf("getting otp code: %w", err)
+		return fmt.Errorf("consuming otp code: %w", err)
 	}
 
-	if foundCode == "" {
-		return domain.NewBadRequestError("otp code not found", ErrOtpCodeNotFound)
-	}
-
-	if !secure.VerifyOTP(code, foundCode, []byte(s.cfg.OTP.Secret)) {
+	if !consumed {
 		return domain.NewNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
 	}
 
-	if err := s.otpRepository.DeleteCode(ctx, email); err != nil {
-		return fmt.Errorf("deleting otp code: %w", err)
+	return nil
+}
+
+func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, email string) (string, error) {
+	hashedCode := secure.HashOTP(code, []byte(s.cfg.OTP.Secret))
+	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
+	if err != nil {
+		return "", fmt.Errorf("consuming otp code: %w", err)
 	}
 
-	return nil
+	if !consumed {
+		return "", domain.NewNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
+	}
+
+	user, err := s.userRepository.GetByEmail(ctx, email)
+	if err != nil {
+		return "", fmt.Errorf("fetching user by email: %w", err)
+	}
+
+	if user == nil {
+		return "", domain.NewUnauthorizedError("invalid email or otp code", ErrUserNotRegistered)
+	}
+
+	resetToken, err := secure.GenerateResetToken()
+	if err != nil {
+		return "", fmt.Errorf("generating reset token: %w", err)
+	}
+
+	hashedResetToken := secure.HashResetToken(resetToken, []byte(s.cfg.OTP.Secret))
+
+	token := domain.ResetToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		TokenHash: hashedResetToken,
+		ExpiresAt: time.Now().Add(s.cfg.OTP.Duration),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.resetTokenRepository.Save(ctx, &token); err != nil {
+		return "", fmt.Errorf("saving reset token: %w", err)
+	}
+
+	return resetToken, nil
 }

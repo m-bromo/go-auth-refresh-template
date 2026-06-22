@@ -42,6 +42,7 @@ func TestRefreshTokenService_GenerateRefreshToken(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
+				testConfig(),
 				refreshTokenRepository,
 				&mocks.JwtService{},
 			)
@@ -71,6 +72,14 @@ func TestRefreshTokenService_GenerateRefreshToken(t *testing.T) {
 
 			if refreshTokenRepository.LastSaved.UserID != userID {
 				t.Errorf("saved token user ID = %s, want %s", refreshTokenRepository.LastSaved.UserID, userID)
+			}
+
+			if refreshTokenRepository.LastSaved.CreatedAt.IsZero() {
+				t.Errorf("saved token CreatedAt is zero")
+			}
+
+			if refreshTokenRepository.LastSaved.ExpiresAt.IsZero() {
+				t.Errorf("saved token ExpiresAt is zero")
 			}
 		})
 	}
@@ -177,6 +186,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
+				testConfig(),
 				refreshTokenRepository,
 				jwtService,
 			)
@@ -265,6 +275,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
+				testConfig(),
 				refreshTokenRepository,
 				&mocks.JwtService{},
 			)

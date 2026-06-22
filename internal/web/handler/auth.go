@@ -85,8 +85,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	HandleJSON(w, http.StatusOK, response)
 }
 
-func (h *AuthHandler) SendOtpLoginCode(w http.ResponseWriter, r *http.Request) {
-	var payload models.SendOtpLoginCodePayload
+func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
+	var payload models.SendOTPPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		HandleError(w, err)
 		return
@@ -106,7 +106,7 @@ func (h *AuthHandler) SendOtpLoginCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
-	var payload models.LoginWithOtpPayload
+	var payload models.VerifyOTPPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		HandleError(w, err)
 		return
@@ -164,6 +164,52 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.cookieManager.DeleteCookie(w)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AuthHandler) VerifyPasswordResetCode(w http.ResponseWriter, r *http.Request) {
+	var payload models.VerifyOTPPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := validation.Validator.Struct(payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	resetToken, err := h.otpService.VerifyPasswordResetCode(r.Context(), payload.Code, payload.Email)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	response := models.VerifyOTPResponse{
+		ResetToken: resetToken,
+	}
+
+	HandleJSON(w, http.StatusOK, response)
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var payload models.ResetPasswordPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	if err := validation.Validator.Struct(payload); err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	err := h.authService.ResetPassword(r.Context(), payload.ResetToken, payload.Password)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

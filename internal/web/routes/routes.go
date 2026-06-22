@@ -15,9 +15,11 @@ type Dependencies struct {
 func SetupRoutes(server *server.Server, d Dependencies) {
 	server.POST("/auth/register", d.AuthHandler.RegisterUser)
 	server.POST("/auth/login", d.AuthHandler.Login)
-	server.POST("/auth/login/otp/send", d.AuthHandler.SendOtpLoginCode)
+	server.POST("/auth/otp/send", d.AuthHandler.SendOTP)
 	server.POST("/auth/login/otp", d.AuthHandler.LoginWithOtp)
 	server.POST("/auth/logout", d.AuthHandler.Logout)
+	server.POST("/auth/password/verify", d.AuthHandler.VerifyPasswordResetCode)
+	server.POST("/auth/password/reset", d.AuthHandler.ResetPassword)
 
 	server.GET("/user/{id}", d.UserHandler.GetProfile, d.AuthMiddleware.Authenticate)
 

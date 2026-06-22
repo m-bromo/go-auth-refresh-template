@@ -3,17 +3,15 @@ package mocks
 import "context"
 
 type OtpRepository struct {
-	SaveCodeFunc       func(ctx context.Context, email string, code string) error
-	DeleteCodeFunc     func(ctx context.Context, email string) error
-	GetCodeByEmailFunc func(ctx context.Context, email string) (string, error)
+	SaveCodeFunc             func(ctx context.Context, email string, code string) error
+	ConsumeCodeIfMatchesFunc func(ctx context.Context, email string, code string) (bool, error)
 
-	SaveCodeCalls       int
-	DeleteCodeCalls     int
-	GetCodeByEmailCalls int
-	LastSavedEmail      string
-	LastSavedCode       string
-	LastDeletedEmail    string
-	LastFetchedEmail    string
+	SaveCodeCalls             int
+	ConsumeCodeIfMatchesCalls int
+	LastSavedEmail            string
+	LastSavedCode             string
+	LastConsumedEmail         string
+	LastConsumedCode          string
 }
 
 func (m *OtpRepository) SaveCode(ctx context.Context, email string, code string) error {
@@ -28,24 +26,14 @@ func (m *OtpRepository) SaveCode(ctx context.Context, email string, code string)
 	return m.SaveCodeFunc(ctx, email, code)
 }
 
-func (m *OtpRepository) DeleteCode(ctx context.Context, email string) error {
-	m.DeleteCodeCalls++
-	m.LastDeletedEmail = email
+func (m *OtpRepository) ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error) {
+	m.ConsumeCodeIfMatchesCalls++
+	m.LastConsumedEmail = email
+	m.LastConsumedCode = code
 
-	if m.DeleteCodeFunc == nil {
-		return nil
+	if m.ConsumeCodeIfMatchesFunc == nil {
+		return false, nil
 	}
 
-	return m.DeleteCodeFunc(ctx, email)
-}
-
-func (m *OtpRepository) GetCodeByEmail(ctx context.Context, email string) (string, error) {
-	m.GetCodeByEmailCalls++
-	m.LastFetchedEmail = email
-
-	if m.GetCodeByEmailFunc == nil {
-		return "", nil
-	}
-
-	return m.GetCodeByEmailFunc(ctx, email)
+	return m.ConsumeCodeIfMatchesFunc(ctx, email, code)
 }

@@ -37,13 +37,23 @@ func main() {
 	redisClient := cache.NewRedisClient(cfg)
 	emailSender := email.NewEmailSender(cfg)
 	userRepository := repository.NewUserRepository(querier)
+	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
 	otpRepository := repository.NewOtpRepository(redisClient, cfg)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
 	userService := service.NewUserService(userRepository)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	authService := service.NewAuthService(
+		cfg,
+		unitOfWork,
+		userRepository,
+		resetTokenRepository,
+		jwtService,
+		refreshTokenService,
+		otpService,
+	)
 	cookieManager := cookie.NewCookieManager(cfg)
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	authHandler := handler.NewAuthHandler(authService, refreshTokenService, otpService, cookieManager)

@@ -124,11 +124,21 @@ func TestRegisterUser_Integration(t *testing.T) {
 	emailSender := email.NewEmailSender(cfg)
 	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	authService := service.NewAuthService(
+		cfg,
+		unitOfWork,
+		userRepository,
+		resetTokenRepository,
+		jwtService,
+		refreshTokenService,
+		otpService,
+	)
 
 	t.Run("should register a user successfully", func(t *testing.T) {
 		user := &domain.User{
@@ -198,11 +208,21 @@ func TestLogin_Integration(t *testing.T) {
 	emailSender := email.NewEmailSender(cfg)
 	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	authService := service.NewAuthService(
+		cfg,
+		unitOfWork,
+		userRepository,
+		resetTokenRepository,
+		jwtService,
+		refreshTokenService,
+		otpService,
+	)
 
 	user := &domain.User{
 		Email:    "login@test.com",
@@ -272,11 +292,21 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 	emailSender := email.NewEmailSender(cfg)
 	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	authService := service.NewAuthService(
+		cfg,
+		unitOfWork,
+		userRepository,
+		resetTokenRepository,
+		jwtService,
+		refreshTokenService,
+		otpService,
+	)
 
 	user := &domain.User{
 		Email:    "otp-login@test.com",
@@ -312,16 +342,20 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 		t.Fatalf("expected refresh token to be a valid UUID, got %q: %v", refreshToken, err)
 	}
 
-	userID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	storedRefreshToken, err := refreshTokenRepository.Get(ctx, refreshTokenID)
 	if err != nil {
-		t.Fatalf("failed to fetch refresh token from redis: %v", err)
+		t.Fatalf("failed to fetch refresh token from postgres: %v", err)
 	}
 
-	if userID == "" {
-		t.Fatalf("expected refresh token to be stored in redis")
+	if storedRefreshToken == nil {
+		t.Fatalf("expected refresh token to be stored in postgres")
 	}
 
-	savedCode, err := otpRepository.GetCodeByEmail(ctx, user.Email)
+	savedCode, err := redisClient.Get(ctx, user.Email).Result()
+	if err == redis.Nil {
+		savedCode = ""
+		err = nil
+	}
 	if err != nil {
 		t.Fatalf("failed to fetch otp code from redis: %v", err)
 	}
@@ -340,11 +374,11 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 		t.Fatalf("expected consumed otp error to wrap a domain error, got: %v", err)
 	}
 
-	if domainErr.ErrorType != domain.BadRequest {
-		t.Errorf("expected consumed otp to return error type %q, got %q", domain.BadRequest, domainErr.ErrorType)
+	if domainErr.ErrorType != domain.NotFound {
+		t.Errorf("expected consumed otp to return error type %q, got %q", domain.NotFound, domainErr.ErrorType)
 	}
 
-	if !errors.Is(domainErr, service.ErrOtpCodeNotFound) {
+	if !errors.Is(domainErr, service.ErrInvalidOtpCode) {
 		t.Errorf("expected consumed otp cause, got: %v", domainErr.Err)
 	}
 }
@@ -361,11 +395,21 @@ func TestRefreshToken_Integration(t *testing.T) {
 	emailSender := email.NewEmailSender(cfg)
 	otpRepository := repository.NewOtpRepository(redisClient, cfg)
 	userRepository := repository.NewUserRepository(querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(redisClient, cfg)
+	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, emailSender, cfg)
-	authService := service.NewAuthService(userRepository, jwtService, refreshTokenService, otpService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	authService := service.NewAuthService(
+		cfg,
+		unitOfWork,
+		userRepository,
+		resetTokenRepository,
+		jwtService,
+		refreshTokenService,
+		otpService,
+	)
 
 	password := "password@123"
 	user := &domain.User{
@@ -395,13 +439,13 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected refresh token to be a valid UUID, got %q: %v", refreshToken, err)
 	}
 
-	userID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	storedRefreshToken, err := refreshTokenRepository.Get(ctx, refreshTokenID)
 	if err != nil {
-		t.Fatalf("failed to fetch refresh token from redis: %v", err)
+		t.Fatalf("failed to fetch refresh token from postgres: %v", err)
 	}
 
-	if userID == "" {
-		t.Fatalf("expected refresh token to be stored in redis")
+	if storedRefreshToken == nil {
+		t.Fatalf("expected refresh token to be stored in postgres")
 	}
 
 	newAccessToken, newRefreshToken, err := refreshTokenService.Refresh(ctx, refreshToken)
@@ -425,13 +469,13 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Errorf("expected refresh token to be rotated")
 	}
 
-	oldTokenUserID, err := refreshTokenRepository.Get(ctx, refreshTokenID)
+	oldRefreshToken, err := refreshTokenRepository.Get(ctx, refreshTokenID)
 	if err != nil {
-		t.Fatalf("failed to fetch old refresh token from redis: %v", err)
+		t.Fatalf("failed to fetch old refresh token from postgres: %v", err)
 	}
 
-	if oldTokenUserID != "" {
-		t.Errorf("expected old refresh token to be deleted from redis")
+	if oldRefreshToken != nil && oldRefreshToken.ExpiresAt.After(time.Now()) {
+		t.Errorf("expected old refresh token to be expired")
 	}
 
 	newRefreshTokenID, err := uuid.Parse(newRefreshToken)
@@ -439,13 +483,17 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected new refresh token to be a valid UUID, got %q: %v", newRefreshToken, err)
 	}
 
-	newTokenUserID, err := refreshTokenRepository.Get(ctx, newRefreshTokenID)
+	newStoredRefreshToken, err := refreshTokenRepository.Get(ctx, newRefreshTokenID)
 	if err != nil {
-		t.Fatalf("failed to fetch new refresh token from redis: %v", err)
+		t.Fatalf("failed to fetch new refresh token from postgres: %v", err)
 	}
 
-	if newTokenUserID != userID {
-		t.Errorf("expected new refresh token user ID %q, got %q", userID, newTokenUserID)
+	if newStoredRefreshToken == nil {
+		t.Fatalf("expected new refresh token to be stored in postgres")
+	}
+
+	if newStoredRefreshToken.UserID != user.ID {
+		t.Errorf("expected new refresh token user ID %q, got %q", user.ID, newStoredRefreshToken.UserID)
 	}
 
 	claims, err := jwtService.ValidateAccessToken("Bearer " + newAccessToken)
@@ -453,8 +501,8 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected new access token to be valid, got: %v", err)
 	}
 
-	if claims.Subject != userID {
-		t.Errorf("expected access token subject %q, got %q", userID, claims.Subject)
+	if claims.Subject != user.ID.String() {
+		t.Errorf("expected access token subject %q, got %q", user.ID, claims.Subject)
 	}
 
 	_, _, err = refreshTokenService.Refresh(ctx, refreshToken)

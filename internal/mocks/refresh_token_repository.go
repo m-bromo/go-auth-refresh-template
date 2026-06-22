@@ -8,19 +8,22 @@ import (
 )
 
 type RefreshTokenRepository struct {
-	SaveFunc    func(ctx context.Context, token *domain.RefreshToken) error
-	GetFunc     func(ctx context.Context, tokenID uuid.UUID) (string, error)
-	ConsumeFunc func(ctx context.Context, tokenID uuid.UUID) (string, error)
-	DeleteFunc  func(ctx context.Context, tokenID uuid.UUID) error
+	SaveFunc           func(ctx context.Context, token *domain.RefreshToken) error
+	GetFunc            func(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error)
+	ConsumeFunc        func(ctx context.Context, tokenID uuid.UUID) (string, error)
+	DeleteFunc         func(ctx context.Context, tokenID uuid.UUID) error
+	DeleteByUserIDFunc func(ctx context.Context, userID uuid.UUID) error
 
-	SaveCalls    int
-	GetCalls     int
-	ConsumeCalls int
-	DeleteCalls  int
-	LastSaved    *domain.RefreshToken
-	LastGotID    uuid.UUID
-	LastConsumed uuid.UUID
-	LastDeleted  uuid.UUID
+	SaveCalls           int
+	GetCalls            int
+	ConsumeCalls        int
+	DeleteCalls         int
+	DeleteByUserIDCalls int
+	LastSaved           *domain.RefreshToken
+	LastGotID           uuid.UUID
+	LastConsumed        uuid.UUID
+	LastDeleted         uuid.UUID
+	LastDeletedUserID   uuid.UUID
 }
 
 func (m *RefreshTokenRepository) Save(ctx context.Context, token *domain.RefreshToken) error {
@@ -35,12 +38,12 @@ func (m *RefreshTokenRepository) Save(ctx context.Context, token *domain.Refresh
 	return m.SaveFunc(ctx, token)
 }
 
-func (m *RefreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (string, error) {
+func (m *RefreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error) {
 	m.GetCalls++
 	m.LastGotID = tokenID
 
 	if m.GetFunc == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	return m.GetFunc(ctx, tokenID)
@@ -66,4 +69,15 @@ func (m *RefreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) 
 	}
 
 	return m.DeleteFunc(ctx, tokenID)
+}
+
+func (m *RefreshTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
+	m.DeleteByUserIDCalls++
+	m.LastDeletedUserID = userID
+
+	if m.DeleteByUserIDFunc == nil {
+		return nil
+	}
+
+	return m.DeleteByUserIDFunc(ctx, userID)
 }

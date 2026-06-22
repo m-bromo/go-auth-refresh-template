@@ -10,14 +10,15 @@ import (
 
 type OtpRepository interface {
 	SaveCode(ctx context.Context, email string, code string) error
-	DeleteCode(ctx context.Context, email string) error
-	GetCodeByEmail(ctx context.Context, email string) (string, error)
+	ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error)
 }
 
 type otpRepository struct {
 	redisClient *redis.Client
 	cfg         *config.Config
 }
+
+const consumeCodeMaxRetries = 3
 
 func NewOtpRepository(redisClient *redis.Client, cfg *config.Config) OtpRepository {
 	return &otpRepository{
@@ -35,24 +36,48 @@ func (r *otpRepository) SaveCode(ctx context.Context, email string, code string)
 	return nil
 }
 
-func (r *otpRepository) DeleteCode(ctx context.Context, email string) error {
-	_, err := r.redisClient.Del(ctx, email).Result()
-	if err != nil {
-		return fmt.Errorf("deleting otp code from redis: %w", err)
+func (r *otpRepository) ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error) {
+	var consumed bool
+
+	for range consumeCodeMaxRetries {
+		err := r.redisClient.Watch(ctx, func(tx *redis.Tx) error {
+			storedCode, err := tx.Get(ctx, email).Result()
+			if err == redis.Nil {
+				consumed = false
+				return nil
+			}
+
+			if err != nil {
+				return err
+			}
+
+			if storedCode != code {
+				consumed = false
+				return nil
+			}
+
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				pipe.Del(ctx, email)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			consumed = true
+			return nil
+		}, email)
+
+		if err == redis.TxFailedErr {
+			continue
+		}
+
+		if err != nil {
+			return false, fmt.Errorf("consuming otp code from redis: %w", err)
+		}
+
+		return consumed, nil
 	}
 
-	return nil
-}
-
-func (r *otpRepository) GetCodeByEmail(ctx context.Context, email string) (string, error) {
-	code, err := r.redisClient.Get(ctx, email).Result()
-	if err == redis.Nil {
-		return "", nil
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("getting otp code from redis: %w", err)
-	}
-
-	return code, nil
+	return false, fmt.Errorf("consuming otp code from redis: %w", redis.TxFailedErr)
 }

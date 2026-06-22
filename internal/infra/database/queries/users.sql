@@ -5,6 +5,12 @@ INSERT INTO users (
     $1, $2, $3, $4
 );
 
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET 
+    password = $2
+WHERE id = $1;
+
 -- name: GetByEmail :one 
 SELECT *
 FROM users u 
