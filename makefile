@@ -12,13 +12,16 @@ build:
 	@echo "🔨 Construindo o binário localmente..."
 	go build -o atom-ly
 
-test:
-	@echo "🧪 Rodando testes..."
+test-unit:
+	@echo "🧪 Rodando testes unitários..."
 	go test ./...
 
 test-integration:
 	@echo "🧪 Rodando testes de integração..."
 	go test -tags=integration ./...
+
+test: test-unit test-integration
+	@echo "🧪 Testes rodados"
 
 docker-up:
 	@echo "🐳 Construindo a imagem Docker..."
