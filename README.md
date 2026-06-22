@@ -56,7 +56,9 @@ Start the API:
 make run
 ```
 
-The API listens on `http://localhost:8080` by default.
+The API listens on the host and port configured through `API_HOST` and `API_PORT`.
+
+Swagger documentation is available at `/swagger/` on the running API, for example `http://localhost:8081/swagger/` when `API_PORT=8081`.
 
 ### Build
 
@@ -73,6 +75,8 @@ make test
 The current test suite uses testcontainers for PostgreSQL and Redis, so Docker must be available when running tests.
 
 ## API
+
+The OpenAPI contract is maintained in [`docs/openapi.yaml`](docs/openapi.yaml) and served by the running application at `/swagger/openapi.yaml`.
 
 ### Register
 

@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: Go Auth Refresh Template API
+  version: 1.0.0
+  description: Authentication API with registration, login, JWT access tokens, OTP flows, password reset, and refresh-token rotation.
+servers:
+  - url: /
+    description: Current API origin
+tags:
+  - name: Auth
+    description: Authentication and account access flows
+  - name: User
+    description: Authenticated user operations
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserPayload"
+            example:
+              email: user@example.com
+              username: newUser
+              password: password@123
+      responses:
+        "201":
+          description: User registered successfully.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntityError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginPayload"
+            example:
+              email: user@example.com
+              password: password@123
+      responses:
+        "200":
+          description: Login succeeded. The response body contains an access token and the refresh token is set as an HTTP-only cookie.
+          headers:
+            Set-Cookie:
+              description: HTTP-only refresh token cookie.
+              schema:
+                type: string
+                example: auth_cookie=refresh-token; Path=/; HttpOnly; Secure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/otp/send:
+    post:
+      tags:
+        - Auth
+      summary: Send an OTP code
+      operationId: sendOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOTPPayload"
+            example:
+              email: user@example.com
+      responses:
+        "204":
+          description: OTP code sent successfully.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntityError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/login/otp:
+    post:
+      tags:
+        - Auth
+      summary: Login with an OTP code
+      operationId: loginWithOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOTPPayload"
+            example:
+              email: user@example.com
+              code: "123456"
+      responses:
+        "200":
+          description: OTP login succeeded. The response body contains an access token and the refresh token is set as an HTTP-only cookie.
+          headers:
+            Set-Cookie:
+              description: HTTP-only refresh token cookie.
+              schema:
+                type: string
+                example: auth_cookie=refresh-token; Path=/; HttpOnly; Secure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntityError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout and revoke the refresh token
+      operationId: logout
+      security:
+        - refreshCookie: []
+      responses:
+        "204":
+          description: Logout completed. The refresh token cookie is removed when present.
+          headers:
+            Set-Cookie:
+              description: Expired refresh token cookie.
+              schema:
+                type: string
+                example: auth_cookie=; Path=/; Max-Age=0; HttpOnly; Secure
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/password/verify:
+    post:
+      tags:
+        - Auth
+      summary: Verify a password reset OTP code
+      operationId: verifyPasswordResetCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOTPPayload"
+            example:
+              email: user@example.com
+              code: "123456"
+      responses:
+        "200":
+          description: Password reset code verified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyOTPResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntityError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /auth/password/reset:
+    post:
+      tags:
+        - Auth
+      summary: Reset a password with a reset token
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordPayload"
+            example:
+              reset_token: reset-token
+              password: newPassword@123
+      responses:
+        "204":
+          description: Password reset successfully.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntityError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /refresh:
+    post:
+      tags:
+        - Auth
+      summary: Rotate the refresh token and issue a new access token
+      operationId: refresh
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: Refresh succeeded. The response body is the new access token as a JSON string, and a new refresh token cookie is set.
+          headers:
+            Set-Cookie:
+              description: New HTTP-only refresh token cookie.
+              schema:
+                type: string
+                example: auth_cookie=new-refresh-token; Path=/; HttpOnly; Secure
+          content:
+            application/json:
+              schema:
+                type: string
+                example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /user/{id}:
+    get:
+      tags:
+        - User
+      summary: Get a user profile
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User UUID. It must match the subject from the access token.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User profile found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProfilePayload"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: auth_cookie
+  schemas:
+    RegisterUserPayload:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 6
+          description: Must contain at least one special character from !@#$%&?.
+          example: password@123
+        username:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: newUser
+    LoginPayload:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: password@123
+    SendOTPPayload:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+    VerifyOTPPayload:
+      type: object
+      required:
+        - email
+        - code
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        code:
+          type: string
+          example: "123456"
+    ResetPasswordPayload:
+      type: object
+      required:
+        - password
+        - reset_token
+      properties:
+        password:
+          type: string
+          minLength: 6
+          description: Must contain at least one special character from !@#$%&?.
+          example: newPassword@123
+        reset_token:
+          type: string
+          example: reset-token
+    LoginResponse:
+      type: object
+      required:
+        - access_token
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature
+    GetProfilePayload:
+      type: object
+      required:
+        - email
+        - username
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        username:
+          type: string
+          example: newUser
+    VerifyOTPResponse:
+      type: object
+      required:
+        - reset_token
+      properties:
+        reset_token:
+          type: string
+          example: reset-token
+    ClientError:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+          example: one or more fields are invalid
+        code:
+          type: integer
+          example: 400
+        causes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorCause"
+    ErrorCause:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: Email
+        message:
+          type: string
+          example: Email must be a valid email address
+  responses:
+    ValidationError:
+      description: Invalid request payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    UnauthorizedError:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    ForbiddenError:
+      description: The authenticated user cannot access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    NotFoundError:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    ConflictError:
+      description: The request conflicts with existing state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    UnprocessableEntityError:
+      description: The request could not be processed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientError"
+    InternalServerError:
+      description: Unexpected internal error.

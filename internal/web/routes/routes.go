@@ -13,6 +13,10 @@ type Dependencies struct {
 }
 
 func SetupRoutes(server *server.Server, d Dependencies) {
+	server.GET("/swagger", handler.RedirectSwagger)
+	server.GET("/swagger/", handler.SwaggerUI)
+	server.GET("/swagger/openapi.yaml", handler.SwaggerSpec)
+
 	server.POST("/auth/register", d.AuthHandler.RegisterUser)
 	server.POST("/auth/login", d.AuthHandler.Login)
 	server.POST("/auth/otp/send", d.AuthHandler.SendOTP)
