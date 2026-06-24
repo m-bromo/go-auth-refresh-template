@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -17,6 +18,16 @@ func HandleJSON(w http.ResponseWriter, code int, body any) {
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(body); err != nil {
+		slog.Error("failed to encode JSON response", "error", err)
+	}
+}
+
+func HandleHTML(w http.ResponseWriter, code int, body bytes.Buffer) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	w.WriteHeader(code)
+
+	if _, err := w.Write(body.Bytes()); err != nil {
 		slog.Error("failed to encode JSON response", "error", err)
 	}
 }
