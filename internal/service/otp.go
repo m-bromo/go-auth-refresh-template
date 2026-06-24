@@ -118,13 +118,13 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 		return "", fmt.Errorf("generating reset token: %w", err)
 	}
 
-	hashedResetToken := secure.HashResetToken(resetToken, []byte(s.cfg.OTP.Secret))
+	hashedResetToken := secure.HashResetToken(resetToken, []byte(s.cfg.ResetToken.Secret))
 
 	token := domain.ResetToken{
 		ID:        uuid.New(),
 		UserID:    user.ID,
 		TokenHash: hashedResetToken,
-		ExpiresAt: time.Now().Add(s.cfg.OTP.Duration),
+		ExpiresAt: time.Now().Add(s.cfg.ResetToken.Duration),
 		CreatedAt: time.Now(),
 	}
 

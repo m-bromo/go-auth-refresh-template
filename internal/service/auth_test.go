@@ -397,7 +397,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 
 	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	resetToken := "reset-token"
-	resetTokenHash := secure.HashResetToken(resetToken, []byte(testConfig().OTP.Secret))
+	resetTokenHash := secure.HashResetToken(resetToken, []byte(testConfig().ResetToken.Secret))
 	repositoryErr := errors.New("repository failed")
 	updateErr := errors.New("update failed")
 	revokeTokensErr := errors.New("revoke tokens failed")

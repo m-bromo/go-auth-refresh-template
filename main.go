@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 
@@ -10,8 +9,6 @@ import (
 )
 
 func main() {
-	slog.Info("starting application")
-
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Fatal(err.Error())
@@ -23,7 +20,9 @@ func main() {
 	}
 	defer app.DB.Close()
 
-	if err := app.Server.Run(fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)); err != nil {
+	slog.Info("starting application on port", "url", cfg.API.URL)
+
+	if err := app.Server.Run(cfg.API.URL); err != nil {
 		log.Fatal(err)
 	}
 }

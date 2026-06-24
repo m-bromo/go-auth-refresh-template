@@ -131,7 +131,7 @@ func (s *authService) LoginWithOtp(ctx context.Context, email string, code strin
 }
 
 func (s *authService) ResetPassword(ctx context.Context, resetToken string, password string) error {
-	tokenHash := secure.HashResetToken(resetToken, []byte(s.cfg.OTP.Secret))
+	tokenHash := secure.HashResetToken(resetToken, []byte(s.cfg.ResetToken.Secret))
 
 	hashedPassword, err := secure.HashPassword(password)
 	if err != nil {

@@ -18,11 +18,13 @@ type Config struct {
 	Jwt          Jwt
 	Redis        Redis
 	RefreshToken RefreshToken
+	ResetToken   ResetToken
 	OTP          OTP
 	Resend       Resend
 }
 
 type API struct {
+	URL  string
 	Host string `env:"API_HOST,default=localhost"`
 	Port string `env:"API_PORT,default=8080"`
 }
@@ -38,11 +40,11 @@ type Postgres struct {
 type Redis struct {
 	Host     string `env:"REDIS_HOST,default=localhost"`
 	Port     string `env:"REDIS_PORT,default=6379"`
-	Password string `env:"REDIS_PASSWORD"`
+	Password string `env:"REDIS_PASSWORD,default="`
 }
 
 type Jwt struct {
-	PrivateKey string        `env:"JWT_PRIVATE_KEY"`
+	PrivateKey string        `env:"JWT_PRIVATE_KEY,default=change-me"`
 	Duration   time.Duration `env:"JWT_DURATION,default=15m"`
 }
 
@@ -50,14 +52,19 @@ type RefreshToken struct {
 	Duration time.Duration `env:"REFRESH_TOKEN_DURATION,default=168h"`
 }
 
+type ResetToken struct {
+	Secret   string        `env:"RESET_TOKEN_SECRET,default=change-me"`
+	Duration time.Duration `env:"RESET_TOKEN_DURATION,default=10m"`
+}
+
 type OTP struct {
 	MaxValue int           `env:"OTP_MAX_VALUE,default=1000000"`
-	Secret   string        `env:"OTP_SECRET"`
+	Secret   string        `env:"OTP_SECRET,default=change-me"`
 	Duration time.Duration `env:"OTP_DURATION,default=2m"`
 }
 
 type Resend struct {
-	ApiKey string `env:"RESEND_API_KEY"`
+	ApiKey string `env:"RESEND_API_KEY,default="`
 	Email  string `env:"RESEND_EMAIL,default=example@email.com"`
 }
 

@@ -300,15 +300,18 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 					return tt.saveResetErr
 				},
 			}
+			cfg := testConfig()
+			resetTokenExpiresFrom := time.Now().Add(cfg.ResetToken.Duration)
 			otpService := service.NewOtpService(
 				otpRepository,
 				userRepository,
 				resetTokenRepository,
 				&mocks.EmailSender{},
-				testConfig(),
+				cfg,
 			)
 
 			resetToken, err := otpService.VerifyPasswordResetCode(t.Context(), tt.code, "user@test.com")
+			resetTokenExpiresUntil := time.Now().Add(cfg.ResetToken.Duration)
 
 			if tt.wantErr != nil {
 				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
@@ -357,6 +360,16 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 					t.Errorf("saved reset token expiration is zero")
 				}
 
+				if resetTokenRepository.LastSavedToken.ExpiresAt.Before(resetTokenExpiresFrom) ||
+					resetTokenRepository.LastSavedToken.ExpiresAt.After(resetTokenExpiresUntil) {
+					t.Errorf(
+						"saved reset token expiration = %s, want between %s and %s",
+						resetTokenRepository.LastSavedToken.ExpiresAt,
+						resetTokenExpiresFrom,
+						resetTokenExpiresUntil,
+					)
+				}
+
 				if resetTokenRepository.LastSavedToken.TokenHash == "" {
 					t.Fatalf("saved reset token is empty")
 				}
@@ -368,7 +381,7 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 				if !secure.VerifyResetToken(
 					resetToken,
 					resetTokenRepository.LastSavedToken.TokenHash,
-					[]byte(testConfig().OTP.Secret),
+					[]byte(cfg.ResetToken.Secret),
 				) {
 					t.Errorf("saved reset token hash does not match returned token")
 				}
@@ -390,6 +403,10 @@ func testConfig() *config.Config {
 			MaxValue: 1000000,
 			Secret:   "otp-secret",
 			Duration: 2 * time.Minute,
+		},
+		ResetToken: config.ResetToken{
+			Secret:   "reset-token-secret",
+			Duration: 10 * time.Minute,
 		},
 	}
 }

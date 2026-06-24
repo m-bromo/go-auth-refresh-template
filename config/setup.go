@@ -39,6 +39,8 @@ func NewConfig(envPaths ...string) (*Config, error) {
 		config.API.Port = strconv.Itoa(port)
 	}
 
+	config.API.URL = fmt.Sprintf("%s:%s", config.API.Host, config.API.Port)
+
 	return &config, nil
 }
 
