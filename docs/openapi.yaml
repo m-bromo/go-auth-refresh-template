@@ -35,8 +35,6 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "409":
           $ref: "#/components/responses/ConflictError"
-        "422":
-          $ref: "#/components/responses/UnprocessableEntityError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /auth/login:
@@ -89,13 +87,9 @@ paths:
               email: user@example.com
       responses:
         "204":
-          description: OTP code sent successfully.
+          description: OTP send request accepted. Unknown emails also return 204 to avoid account enumeration.
         "400":
           $ref: "#/components/responses/ValidationError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "422":
-          $ref: "#/components/responses/UnprocessableEntityError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /auth/login/otp:
@@ -130,8 +124,8 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
-        "422":
-          $ref: "#/components/responses/UnprocessableEntityError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /auth/logout:
@@ -181,8 +175,8 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
-        "422":
-          $ref: "#/components/responses/UnprocessableEntityError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /auth/password/reset:
@@ -207,8 +201,6 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
-        "422":
-          $ref: "#/components/responses/UnprocessableEntityError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /refresh:

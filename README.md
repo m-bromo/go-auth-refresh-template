@@ -1,6 +1,6 @@
 # Go Auth Refresh Template
 
-A reusable Go authentication API template with registration, login, JWT access tokens, and Redis-backed refresh-token rotation.
+A reusable Go authentication API template with registration, login, JWT access tokens, PostgreSQL-backed refresh-token rotation, and Redis-backed OTP codes.
 
 The project is structured around clear HTTP, service, repository, infrastructure, and domain layers so it can be used as a starting point for authenticated Go APIs.
 
@@ -36,6 +36,11 @@ JWT_DURATION=15m
 REFRESH_TOKEN_DURATION=168h
 RESET_TOKEN_SECRET=change-me
 RESET_TOKEN_DURATION=10m
+OTP_MAX_VALUE=1000000
+OTP_SECRET=change-me
+OTP_DURATION=2m
+RESEND_API_KEY=
+RESEND_EMAIL=example@email.com
 ```
 
 ### Run Locally
@@ -124,6 +129,8 @@ Cookie: auth_cookie=<refresh-token>
 
 Consumes the current refresh token, stores a new refresh token cookie, and returns a new access token.
 
+Refresh tokens are stored in PostgreSQL and rotated on use. OTP codes are stored temporarily in Redis.
+
 ### Get User Profile
 
 ```http
@@ -145,8 +152,9 @@ Returns the authenticated user's profile:
 - User registration with email, username, and password validation
 - Password hashing with bcrypt
 - Login with JWT access-token generation
-- Refresh tokens stored in Redis with expiration
+- Refresh tokens stored in PostgreSQL with expiration
 - Refresh-token rotation on use
+- OTP login and password-reset code storage backed by Redis
 - HTTP-only refresh-token cookie handling
 - Protected route middleware using the `Authorization: Bearer <jwt>` header
 - PostgreSQL persistence generated through sqlc

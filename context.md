@@ -15,14 +15,15 @@ This project is a Go authentication template intended to be reused as a base for
 - Redis
 - sqlc
 - JWT access tokens
-- Refresh tokens
+- Refresh tokens in PostgreSQL
+- OTP codes in Redis
 
 ## Authentication Flow
 
 The authentication flow uses two token types:
 
 - Access token: a JWT returned by the login and refresh endpoints.
-- Refresh token: a UUID stored in Redis and sent to the client as an HTTP-only cookie.
+- Refresh token: a UUID stored in PostgreSQL and sent to the client as an HTTP-only cookie.
 
 General flow:
 
@@ -31,9 +32,10 @@ General flow:
 3. A user logs in with email and password.
 4. The API validates the credentials.
 5. The API returns a JWT access token.
-6. The API creates a refresh token, stores it in Redis, and sends it as an HTTP-only cookie.
+6. The API creates a refresh token, stores it in PostgreSQL, and sends it as an HTTP-only cookie.
 7. Protected routes validate the JWT from the `Authorization` header.
 8. The refresh endpoint reads the refresh-token cookie, rotates the refresh token, and returns a new access token.
+9. OTP login and password-reset flows store short-lived OTP hashes in Redis.
 
 ## Data Storage
 
@@ -43,12 +45,14 @@ PostgreSQL stores persistent user data:
 - email
 - hashed password
 - username
+- refresh token ID, user ID, creation time, and expiration time
+- password reset token hashes and expiration metadata
 
-Redis stores refresh tokens temporarily:
+Redis stores OTP codes temporarily:
 
-- key: refresh token ID
-- value: user ID
-- expiration: configured refresh token duration
+- key: user email
+- value: hashed OTP code
+- expiration: configured OTP duration
 
 ## Project Structure
 
