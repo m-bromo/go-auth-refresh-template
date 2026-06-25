@@ -3,22 +3,35 @@ package server
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/m-bromo/go-auth-template/config"
 )
 
 type Middleware func(http.Handler) http.Handler
 
 type Server struct {
+	cfg *config.Config
 	mux *http.ServeMux
 }
 
-func New() *Server {
+func New(cfg *config.Config) *Server {
 	return &Server{
+		cfg: cfg,
 		mux: http.NewServeMux(),
 	}
 }
 
 func (s *Server) Run(addr string) error {
-	return http.ListenAndServe(addr, s.mux)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           s.mux,
+		ReadHeaderTimeout: s.cfg.API.ReadHeaderTimeout,
+		ReadTimeout:       s.cfg.API.ReadTimeout,
+		WriteTimeout:      s.cfg.API.WriteTimeout,
+		IdleTimeout:       s.cfg.API.IdleTimeout,
+	}
+
+	return srv.ListenAndServe()
 }
 
 func (s *Server) GET(addr string, handlerFunc http.HandlerFunc, middlewares ...Middleware) {

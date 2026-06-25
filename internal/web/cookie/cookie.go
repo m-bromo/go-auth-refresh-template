@@ -48,7 +48,7 @@ func (c *CookieManager) DeleteCookie(w http.ResponseWriter) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   c.cfg.IsProduction(),
 		SameSite: http.SameSiteStrictMode,
 	}
 

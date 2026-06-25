@@ -34,7 +34,7 @@ func New(cfg *config.Config) (*App, error) {
 
 	dependencies := setupDependencies(cfg, db, redisClient)
 
-	srv := server.New()
+	srv := server.New(cfg)
 
 	routes.SetupRoutes(srv, dependencies)
 

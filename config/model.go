@@ -24,9 +24,13 @@ type Config struct {
 }
 
 type API struct {
-	URL  string
-	Host string `env:"API_HOST,default=localhost"`
-	Port string `env:"API_PORT,default=8080"`
+	URL               string
+	Host              string        `env:"API_HOST,default=localhost"`
+	Port              string        `env:"API_PORT,default=8080"`
+	ReadHeaderTimeout time.Duration `env:"READ_HEADER_TIMEOUT,default=5s"`
+	ReadTimeout       time.Duration `env:"READ_TIMEOUT,default=10s"`
+	WriteTimeout      time.Duration `env:"WRITE_TIMEOUT,default=10s"`
+	IdleTimeout       time.Duration `env:"IDLE_TIMEOUT,default=60s"`
 }
 
 type Postgres struct {
