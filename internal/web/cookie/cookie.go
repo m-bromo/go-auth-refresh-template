@@ -25,7 +25,7 @@ func (c *CookieManager) SetCookie(w http.ResponseWriter, value string) {
 		Path:     "/",
 		MaxAge:   int(c.cfg.RefreshToken.Duration.Seconds()),
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   c.cfg.IsProduction(),
 		SameSite: http.SameSiteDefaultMode,
 	}
 
