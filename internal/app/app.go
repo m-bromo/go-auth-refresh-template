@@ -2,7 +2,6 @@ package app
 
 import (
 	"database/sql"
-	"log"
 
 	"github.com/m-bromo/go-auth-template/config"
 	"github.com/m-bromo/go-auth-template/internal/infra/cache"
@@ -28,7 +27,7 @@ type App struct {
 func New(cfg *config.Config) (*App, error) {
 	db, err := database.NewPostgresConnection(cfg)
 	if err != nil {
-		log.Fatal(err.Error())
+		return nil, err
 	}
 
 	redisClient := cache.NewRedisClient(cfg)
