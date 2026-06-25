@@ -51,7 +51,7 @@ func (s *emailSender) SendCode(ctx context.Context, email string, code string) e
 		Html:    htmlBuffer.String(),
 	}
 
-	if _, err := s.client.Emails.Send(params); err != nil {
+	if _, err := s.client.Emails.SendWithContext(ctx, params); err != nil {
 		return err
 	}
 
