@@ -20,6 +20,7 @@ type RefreshTokenService interface {
 
 type refreshTokenService struct {
 	cfg                    *config.Config
+	unitOfWork             repository.UnitOfWork
 	refreshTokenRepository repository.RefreshTokenRepository
 	jwtService             JwtService
 }
@@ -29,9 +30,15 @@ var (
 	ErrRefreshTokenNotFoundOrExpired = errors.New("refresh token not found or expired")
 )
 
-func NewRefreshTokenService(cfg *config.Config, refreshTokenRepository repository.RefreshTokenRepository, jwtService JwtService) RefreshTokenService {
+func NewRefreshTokenService(
+	cfg *config.Config,
+	unitOfWork repository.UnitOfWork,
+	refreshTokenRepository repository.RefreshTokenRepository,
+	jwtService JwtService,
+) RefreshTokenService {
 	return &refreshTokenService{
 		cfg:                    cfg,
+		unitOfWork:             unitOfWork,
 		refreshTokenRepository: refreshTokenRepository,
 		jwtService:             jwtService,
 	}
@@ -58,37 +65,45 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 		return "", "", domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
-	userID, err := s.refreshTokenRepository.Consume(ctx, tokenID)
-	if err != nil {
-		return "", "", fmt.Errorf("fetching refresh token from repository: %w", err)
+	var accessTokenString, refreshTokenString string
+	if err := s.unitOfWork.Exec(ctx, func(repos repository.Repositories) error {
+		userID, err := repos.RefreshTokenRepository.Consume(ctx, tokenID)
+		if err != nil {
+			return fmt.Errorf("fetching refresh token from repository: %w", err)
+		}
+
+		if userID == "" {
+			return domain.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
+		}
+
+		userIDString, err := uuid.Parse(userID)
+		if err != nil {
+			return fmt.Errorf("parsing user id: %w", err)
+		}
+
+		newToken := domain.RefreshToken{
+			ID:        uuid.New(),
+			UserID:    userIDString,
+			CreatedAt: time.Now(),
+			ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
+		}
+		refreshTokenString = newToken.ID.String()
+
+		if err := repos.RefreshTokenRepository.Save(ctx, &newToken); err != nil {
+			return fmt.Errorf("saving new refresh token to repository: %w", err)
+		}
+
+		accessTokenString, err = s.jwtService.GenerateAccessToken(newToken.UserID)
+		if err != nil {
+			return fmt.Errorf("generating new access token: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return "", "", err
 	}
 
-	if userID == "" {
-		return "", "", domain.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
-	}
-
-	userIDString, err := uuid.Parse(userID)
-	if err != nil {
-		return "", "", fmt.Errorf("parsing user id: %w", err)
-	}
-
-	newToken := domain.RefreshToken{
-		ID:        uuid.New(),
-		UserID:    userIDString,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
-	}
-
-	if err := s.refreshTokenRepository.Save(ctx, &newToken); err != nil {
-		return "", "", fmt.Errorf("saving new refresh token to repository: %w", err)
-	}
-
-	accessToken, err := s.jwtService.GenerateAccessToken(newToken.UserID)
-	if err != nil {
-		return "", "", fmt.Errorf("generating new access token: %w", err)
-	}
-
-	return accessToken, newToken.ID.String(), nil
+	return accessTokenString, refreshTokenString, nil
 }
 
 func (s *refreshTokenService) Revoke(ctx context.Context, tokenIDString string) error {

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/mocks"
+	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
 )
 
@@ -43,6 +44,7 @@ func TestRefreshTokenService_GenerateRefreshToken(t *testing.T) {
 			}
 			refreshTokenService := service.NewRefreshTokenService(
 				testConfig(),
+				&mocks.UnitOfWork{},
 				refreshTokenRepository,
 				&mocks.JwtService{},
 			)
@@ -187,6 +189,11 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 			}
 			refreshTokenService := service.NewRefreshTokenService(
 				testConfig(),
+				&mocks.UnitOfWork{
+					Repos: repository.Repositories{
+						RefreshTokenRepository: refreshTokenRepository,
+					},
+				},
 				refreshTokenRepository,
 				jwtService,
 			)
@@ -276,6 +283,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 			}
 			refreshTokenService := service.NewRefreshTokenService(
 				testConfig(),
+				&mocks.UnitOfWork{},
 				refreshTokenRepository,
 				&mocks.JwtService{},
 			)

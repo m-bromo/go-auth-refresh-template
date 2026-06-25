@@ -49,6 +49,11 @@ func New(cfg *config.Config) (*App, error) {
 	}, nil
 }
 
+func (a *App) Close() {
+	a.DB.Close()
+	a.Redis.Close()
+}
+
 func setupDependencies(cfg *config.Config, db *sql.DB, redisClient *redis.Client) routes.Dependencies {
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(cfg)
@@ -61,7 +66,7 @@ func setupDependencies(cfg *config.Config, db *sql.DB, redisClient *redis.Client
 
 	userService := service.NewUserService(userRepository)
 	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(cfg, refreshTokenRepository, jwtService)
+	refreshTokenService := service.NewRefreshTokenService(cfg, unitOfWork, refreshTokenRepository, jwtService)
 	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
 	authService := service.NewAuthService(
 		cfg,

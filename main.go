@@ -18,7 +18,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	defer app.DB.Close()
+	defer app.Close()
 
 	slog.Info("starting application on port", "url", cfg.API.URL)
 
