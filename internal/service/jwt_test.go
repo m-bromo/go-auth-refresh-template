@@ -82,6 +82,12 @@ func TestJwtService_ValidateAccessToken(t *testing.T) {
 			wantErrType: domain.Unauthorized,
 		},
 		{
+			name:        "rejects raw token format",
+			bearerToken: validToken,
+			wantErr:     service.ErrInvalidToken,
+			wantErrType: domain.Unauthorized,
+		},
+		{
 			name:        "rejects malformed token",
 			bearerToken: "Bearer not-a-jwt",
 			wantErr:     service.ErrInvalidToken,

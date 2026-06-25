@@ -51,7 +51,7 @@ func (s *jwtService) GenerateAccessToken(userID uuid.UUID) (string, error) {
 }
 
 func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredClaims, error) {
-	if strings.HasSuffix(bearerToken, "Bearer ") {
+	if !strings.HasPrefix(bearerToken, "Bearer ") {
 		return nil, domain.NewUnauthorizedError("invalid token format", ErrInvalidToken)
 	}
 
