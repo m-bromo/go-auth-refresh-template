@@ -66,13 +66,15 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 		return fmt.Errorf("generating otp code: %w", err)
 	}
 
-	hashedCode := secure.HashOTP(fmt.Sprintf("%06d", code), []byte(s.cfg.OTP.Secret))
+	formatedCode := fmt.Sprintf("%06d", code)
+
+	hashedCode := secure.HashOTP(formatedCode, []byte(s.cfg.OTP.Secret))
 
 	if err := s.otpRepository.SaveCode(ctx, user.Email, hashedCode); err != nil {
 		return fmt.Errorf("saving hash code: %w", err)
 	}
 
-	if err := s.emailSender.SendCode(ctx, user.Email, code.String()); err != nil {
+	if err := s.emailSender.SendCode(ctx, user.Email, formatedCode); err != nil {
 		return fmt.Errorf("sending coding: %w", err)
 	}
 
