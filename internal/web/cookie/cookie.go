@@ -9,12 +9,17 @@ import (
 const cookieName = "auth_cookie"
 
 type CookieManager struct {
-	cfg *configs.Config
+	environmentOptions  configs.Environment
+	refreshTokenOptions *configs.RefreshToken
 }
 
-func NewCookieManager(cfg *configs.Config) *CookieManager {
+func NewCookieManager(
+	environmentOptions configs.Environment,
+	refreshTokenOptions *configs.RefreshToken,
+) *CookieManager {
 	return &CookieManager{
-		cfg: cfg,
+		environmentOptions:  environmentOptions,
+		refreshTokenOptions: refreshTokenOptions,
 	}
 }
 
@@ -23,9 +28,9 @@ func (c *CookieManager) SetCookie(w http.ResponseWriter, value string) {
 		Name:     cookieName,
 		Value:    value,
 		Path:     "/",
-		MaxAge:   int(c.cfg.RefreshToken.Duration.Seconds()),
+		MaxAge:   int(c.refreshTokenOptions.Duration.Seconds()),
 		HttpOnly: true,
-		Secure:   c.cfg.IsProduction(),
+		Secure:   c.environmentOptions == configs.Production,
 		SameSite: http.SameSiteDefaultMode,
 	}
 
@@ -48,7 +53,7 @@ func (c *CookieManager) DeleteCookie(w http.ResponseWriter) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   c.cfg.IsProduction(),
+		Secure:   c.environmentOptions == configs.Production,
 		SameSite: http.SameSiteStrictMode,
 	}
 

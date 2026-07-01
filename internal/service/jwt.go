@@ -25,12 +25,12 @@ type JwtService interface {
 }
 
 type jwtService struct {
-	cfg *configs.Config
+	jwtOptions *configs.Jwt
 }
 
-func NewJwtService(cfg *configs.Config) JwtService {
+func NewJwtService(jwtOptions *configs.Jwt) JwtService {
 	return &jwtService{
-		cfg: cfg,
+		jwtOptions: jwtOptions,
 	}
 }
 
@@ -38,11 +38,11 @@ func (s *jwtService) GenerateAccessToken(userID uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Subject:   userID.String(),
 		ID:        uuid.NewString(),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.cfg.Jwt.Duration)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.jwtOptions.Duration)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	})
 
-	tokenString, err := token.SignedString([]byte(s.cfg.Jwt.PrivateKey))
+	tokenString, err := token.SignedString([]byte(s.jwtOptions.PrivateKey))
 	if err != nil {
 		return "", fmt.Errorf("signing access token: %w", err)
 	}
@@ -65,7 +65,7 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 			return nil, domain.NewUnauthorizedError("invalid token signing method", ErrInvalidSigningMethod)
 		}
 
-		return []byte(s.cfg.Jwt.PrivateKey), nil
+		return []byte(s.jwtOptions.PrivateKey), nil
 	})
 	if err != nil {
 		var domainErr *domain.DomainError

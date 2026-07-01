@@ -43,7 +43,7 @@ func TestRefreshTokenService_GenerateRefreshToken(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
-				testConfig(),
+				&testConfig().RefreshToken,
 				&mocks.UnitOfWork{},
 				refreshTokenRepository,
 				&mocks.JwtService{},
@@ -188,7 +188,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
-				testConfig(),
+				&testConfig().RefreshToken,
 				&mocks.UnitOfWork{
 					Repos: repository.Repositories{
 						RefreshTokenRepository: refreshTokenRepository,
@@ -282,7 +282,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 				},
 			}
 			refreshTokenService := service.NewRefreshTokenService(
-				testConfig(),
+				&testConfig().RefreshToken,
 				&mocks.UnitOfWork{},
 				refreshTokenRepository,
 				&mocks.JwtService{},

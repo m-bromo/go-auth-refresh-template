@@ -15,8 +15,8 @@ type EmailSender interface {
 }
 
 type emailSender struct {
-	client *resend.Client
-	cfg    *configs.Config
+	client        *resend.Client
+	resendOptions *configs.Resend
 }
 
 //go:embed templates/send-otp-code.html
@@ -24,12 +24,12 @@ var templateFS embed.FS
 
 const otpTemplatePath = "templates/send-otp-code.html"
 
-func NewEmailSender(cfg *configs.Config) EmailSender {
-	client := resend.NewClient(cfg.Resend.ApiKey)
+func NewEmailSender(resendOptions *configs.Resend) EmailSender {
+	client := resend.NewClient(resendOptions.ApiKey)
 
 	return &emailSender{
-		client: client,
-		cfg:    cfg,
+		client:        client,
+		resendOptions: resendOptions,
 	}
 }
 
@@ -45,7 +45,7 @@ func (s *emailSender) SendCode(ctx context.Context, email string, code string) e
 	}
 
 	params := &resend.SendEmailRequest{
-		From:    s.cfg.Resend.Email,
+		From:    s.resendOptions.Email,
 		To:      []string{email},
 		Subject: "OTP code",
 		Html:    htmlBuffer.String(),

@@ -32,7 +32,8 @@ type otpService struct {
 	userRepository       repository.UserRepository
 	resetTokenRepository repository.ResetTokenRepository
 	emailSender          email.EmailSender
-	cfg                  *configs.Config
+	otpOptions           *configs.OTP
+	resetTokenOptions    *configs.ResetToken
 }
 
 func NewOtpService(
@@ -40,14 +41,16 @@ func NewOtpService(
 	userRepository repository.UserRepository,
 	resetTokenRepository repository.ResetTokenRepository,
 	emailSender email.EmailSender,
-	cfg *configs.Config,
+	otpOptions *configs.OTP,
+	resetTokenOptions *configs.ResetToken,
 ) OtpService {
 	return &otpService{
 		otpRepository:        otpRepository,
 		userRepository:       userRepository,
 		resetTokenRepository: resetTokenRepository,
 		emailSender:          emailSender,
-		cfg:                  cfg,
+		otpOptions:           otpOptions,
+		resetTokenOptions:    resetTokenOptions,
 	}
 }
 
@@ -61,14 +64,14 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 		return nil
 	}
 
-	code, err := rand.Int(rand.Reader, big.NewInt(int64(s.cfg.OTP.MaxValue)))
+	code, err := rand.Int(rand.Reader, big.NewInt(int64(s.otpOptions.MaxValue)))
 	if err != nil {
 		return fmt.Errorf("generating otp code: %w", err)
 	}
 
 	formatedCode := fmt.Sprintf("%06d", code)
 
-	hashedCode := secure.HashOTP(formatedCode, []byte(s.cfg.OTP.Secret))
+	hashedCode := secure.HashOTP(formatedCode, []byte(s.otpOptions.Secret))
 
 	if err := s.otpRepository.SaveCode(ctx, user.Email, hashedCode); err != nil {
 		return fmt.Errorf("saving hash code: %w", err)
@@ -82,7 +85,7 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 }
 
 func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email string) error {
-	hashedCode := secure.HashOTP(code, []byte(s.cfg.OTP.Secret))
+	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
 	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return fmt.Errorf("consuming otp code: %w", err)
@@ -96,7 +99,7 @@ func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email str
 }
 
 func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, email string) (string, error) {
-	hashedCode := secure.HashOTP(code, []byte(s.cfg.OTP.Secret))
+	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
 	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return "", fmt.Errorf("consuming otp code: %w", err)
@@ -120,13 +123,13 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 		return "", fmt.Errorf("generating reset token: %w", err)
 	}
 
-	hashedResetToken := secure.HashResetToken(resetToken, []byte(s.cfg.ResetToken.Secret))
+	hashedResetToken := secure.HashResetToken(resetToken, []byte(s.resetTokenOptions.Secret))
 
 	token := domain.ResetToken{
 		ID:        uuid.New(),
 		UserID:    user.ID,
 		TokenHash: hashedResetToken,
-		ExpiresAt: time.Now().Add(s.cfg.ResetToken.Duration),
+		ExpiresAt: time.Now().Add(s.resetTokenOptions.Duration),
 		CreatedAt: time.Now(),
 	}
 

@@ -54,7 +54,7 @@ func TestAuthService_RegisterUser(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
-				testConfig(),
+				&testConfig().ResetToken,
 				&mocks.UnitOfWork{},
 				userRepository,
 				&mocks.ResetTokenRepository{},
@@ -213,7 +213,7 @@ func TestAuthService_Login(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
-				testConfig(),
+				&testConfig().ResetToken,
 				&mocks.UnitOfWork{},
 				userRepository,
 				&mocks.ResetTokenRepository{},
@@ -351,7 +351,7 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
-				testConfig(),
+				&testConfig().ResetToken,
 				&mocks.UnitOfWork{},
 				userRepository,
 				&mocks.ResetTokenRepository{},
@@ -516,7 +516,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 				},
 			}
 			authService := service.NewAuthService(
-				testConfig(),
+				&testConfig().ResetToken,
 				unitOfWork,
 				userRepository,
 				resetTokenRepository,

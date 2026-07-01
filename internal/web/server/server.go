@@ -10,14 +10,14 @@ import (
 type Middleware func(http.Handler) http.Handler
 
 type Server struct {
-	cfg *configs.Config
-	mux *http.ServeMux
+	apiOptions *configs.API
+	mux        *http.ServeMux
 }
 
-func New(cfg *configs.Config) *Server {
+func New(apiOptions *configs.API) *Server {
 	return &Server{
-		cfg: cfg,
-		mux: http.NewServeMux(),
+		apiOptions: apiOptions,
+		mux:        http.NewServeMux(),
 	}
 }
 
@@ -25,10 +25,10 @@ func (s *Server) Run(addr string) error {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           s.mux,
-		ReadHeaderTimeout: s.cfg.API.ReadHeaderTimeout,
-		ReadTimeout:       s.cfg.API.ReadTimeout,
-		WriteTimeout:      s.cfg.API.WriteTimeout,
-		IdleTimeout:       s.cfg.API.IdleTimeout,
+		ReadHeaderTimeout: s.apiOptions.ReadHeaderTimeout,
+		ReadTimeout:       s.apiOptions.ReadTimeout,
+		WriteTimeout:      s.apiOptions.WriteTimeout,
+		IdleTimeout:       s.apiOptions.IdleTimeout,
 	}
 
 	return srv.ListenAndServe()

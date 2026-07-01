@@ -15,20 +15,20 @@ type OtpRepository interface {
 
 type otpRepository struct {
 	redisClient *redis.Client
-	cfg         *configs.Config
+	otpOptions  *configs.OTP
 }
 
 const consumeCodeMaxRetries = 3
 
-func NewOtpRepository(redisClient *redis.Client, cfg *configs.Config) OtpRepository {
+func NewOtpRepository(redisClient *redis.Client, otpOptions *configs.OTP) OtpRepository {
 	return &otpRepository{
 		redisClient: redisClient,
-		cfg:         cfg,
+		otpOptions:  otpOptions,
 	}
 }
 
 func (r *otpRepository) SaveCode(ctx context.Context, email string, code string) error {
-	_, err := r.redisClient.Set(ctx, email, code, r.cfg.OTP.Duration).Result()
+	_, err := r.redisClient.Set(ctx, email, code, r.otpOptions.Duration).Result()
 	if err != nil {
 		return fmt.Errorf("saving otp code to redis: %w", err)
 	}

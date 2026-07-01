@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
@@ -20,18 +19,15 @@ type Repositories struct {
 }
 
 type unitOfWork struct {
-	cfg     *configs.Config
 	db      *sql.DB
 	queries *sqlc.Queries
 }
 
 func NewUnitOfWork(
-	cfg *configs.Config,
 	db *sql.DB,
 	queries *sqlc.Queries,
 ) UnitOfWork {
 	return &unitOfWork{
-		cfg:     cfg,
 		db:      db,
 		queries: queries,
 	}
@@ -47,7 +43,7 @@ func (u *unitOfWork) Exec(ctx context.Context, fn func(repos Repositories) error
 	qtx := u.queries.WithTx(tx)
 
 	repos := Repositories{
-		RefreshTokenRepository: NewRefreshTokenRepository(qtx, u.cfg),
+		RefreshTokenRepository: NewRefreshTokenRepository(qtx),
 		UserRepository:         NewUserRepository(qtx),
 		ResetTokenRepository:   NewResetTokenRepository(qtx),
 	}

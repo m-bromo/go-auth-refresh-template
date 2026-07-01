@@ -9,13 +9,13 @@ import (
 	"github.com/m-bromo/go-auth-template/configs"
 )
 
-func NewPostgresConnection(cfg *configs.Config) (*sql.DB, error) {
+func NewPostgresConnection(postgresOptions *configs.Postgres) (*sql.DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
-		cfg.Postgres.Host,
-		cfg.Postgres.Port,
-		cfg.Postgres.Name,
-		cfg.Postgres.User,
-		cfg.Postgres.Password,
+		postgresOptions.Host,
+		postgresOptions.Port,
+		postgresOptions.Name,
+		postgresOptions.User,
+		postgresOptions.Password,
 	)
 
 	db, err := sql.Open("postgres", dsn)

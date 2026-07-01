@@ -90,12 +90,14 @@ func TestOtpService_SendCode(t *testing.T) {
 					return tt.sendCodeErr
 				},
 			}
+			cfg := testConfig()
 			otpService := service.NewOtpService(
 				otpRepository,
 				userRepository,
 				&mocks.ResetTokenRepository{},
 				emailSender,
-				testConfig(),
+				&cfg.OTP,
+				&cfg.ResetToken,
 			)
 
 			err := otpService.SendCode(t.Context(), "user@test.com")
@@ -172,12 +174,14 @@ func TestOtpService_VerifyLoginCode(t *testing.T) {
 					return tt.consumed, tt.consumeErr
 				},
 			}
+			cfg := testConfig()
 			otpService := service.NewOtpService(
 				otpRepository,
 				&mocks.UserRepository{},
 				&mocks.ResetTokenRepository{},
 				&mocks.EmailSender{},
-				testConfig(),
+				&cfg.OTP,
+				&cfg.ResetToken,
 			)
 
 			err := otpService.VerifyLoginCode(t.Context(), tt.code, "user@test.com")
@@ -307,7 +311,8 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 				userRepository,
 				resetTokenRepository,
 				&mocks.EmailSender{},
-				cfg,
+				&cfg.OTP,
+				&cfg.ResetToken,
 			)
 
 			resetToken, err := otpService.VerifyPasswordResetCode(t.Context(), tt.code, "user@test.com")

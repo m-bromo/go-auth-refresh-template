@@ -27,7 +27,7 @@ type AuthService interface {
 }
 
 type authService struct {
-	cfg                  *configs.Config
+	resetTokenOptions    *configs.ResetToken
 	unitOfWork           repository.UnitOfWork
 	userRepository       repository.UserRepository
 	resetTokenRepository repository.ResetTokenRepository
@@ -37,7 +37,7 @@ type authService struct {
 }
 
 func NewAuthService(
-	cfg *configs.Config,
+	resetTokenOptions *configs.ResetToken,
 	unitOfWork repository.UnitOfWork,
 	userRepository repository.UserRepository,
 	resetTokenRepository repository.ResetTokenRepository,
@@ -46,7 +46,7 @@ func NewAuthService(
 	otpService OtpService,
 ) AuthService {
 	return &authService{
-		cfg:                  cfg,
+		resetTokenOptions:    resetTokenOptions,
 		unitOfWork:           unitOfWork,
 		userRepository:       userRepository,
 		resetTokenRepository: resetTokenRepository,
@@ -131,7 +131,7 @@ func (s *authService) LoginWithOtp(ctx context.Context, email string, code strin
 }
 
 func (s *authService) ResetPassword(ctx context.Context, resetToken string, password string) error {
-	tokenHash := secure.HashResetToken(resetToken, []byte(s.cfg.ResetToken.Secret))
+	tokenHash := secure.HashResetToken(resetToken, []byte(s.resetTokenOptions.Secret))
 
 	hashedPassword, err := secure.HashPassword(password)
 	if err != nil {

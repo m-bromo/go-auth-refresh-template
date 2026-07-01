@@ -14,7 +14,7 @@ func TestJwtService_GenerateAccessToken(t *testing.T) {
 	t.Parallel()
 
 	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	jwtService := service.NewJwtService(testConfig())
+	jwtService := service.NewJwtService(&testConfig().Jwt)
 
 	tokenString, err := jwtService.GenerateAccessToken(userID)
 	if err != nil {
@@ -43,7 +43,7 @@ func TestJwtService_ValidateAccessToken(t *testing.T) {
 	t.Parallel()
 
 	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	jwtService := service.NewJwtService(testConfig())
+	jwtService := service.NewJwtService(&testConfig().Jwt)
 	validToken, err := jwtService.GenerateAccessToken(userID)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)

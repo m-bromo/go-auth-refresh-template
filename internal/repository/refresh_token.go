@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
@@ -21,13 +20,11 @@ type RefreshTokenRepository interface {
 
 type refreshTokenRepository struct {
 	querier sqlc.Querier
-	cfg     *configs.Config
 }
 
-func NewRefreshTokenRepository(querier sqlc.Querier, cfg *configs.Config) RefreshTokenRepository {
+func NewRefreshTokenRepository(querier sqlc.Querier) RefreshTokenRepository {
 	return &refreshTokenRepository{
 		querier: querier,
-		cfg:     cfg,
 	}
 }
 

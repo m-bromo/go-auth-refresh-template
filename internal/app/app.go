@@ -25,20 +25,20 @@ type App struct {
 	Redis  *redis.Client
 }
 
-func New(cfg *configs.Config) (*App, error) {
-	db, err := database.NewPostgresConnection(cfg)
+func New(configOptions *configs.Config) (*App, error) {
+	db, err := database.NewPostgresConnection(&configOptions.Postgres)
 	if err != nil {
 		return nil, fmt.Errorf("starting postgres database: %w", err)
 	}
 
-	redisClient, err := cache.NewRedisClient(cfg)
+	redisClient, err := cache.NewRedisClient(&configOptions.Redis)
 	if err != nil {
 		return nil, fmt.Errorf("stating redis database: %w", err)
 	}
 
-	dependencies := setupDependencies(cfg, db, redisClient)
+	dependencies := setupDependencies(configOptions, db, redisClient)
 
-	srv := server.New(cfg)
+	srv := server.New(&configOptions.API)
 
 	routes.SetupRoutes(srv, dependencies)
 
@@ -54,22 +54,38 @@ func (a *App) Close() {
 	a.Redis.Close()
 }
 
-func setupDependencies(cfg *configs.Config, db *sql.DB, redisClient *redis.Client) routes.Dependencies {
+func setupDependencies(
+	configOptions *configs.Config,
+	db *sql.DB,
+	redisClient *redis.Client,
+) routes.Dependencies {
 	querier := sqlc.New(db)
-	emailSender := email.NewEmailSender(cfg)
+	emailSender := email.NewEmailSender(&configOptions.Resend)
 
 	userRepository := repository.NewUserRepository(querier)
 	resetTokenRepository := repository.NewResetTokenRepository(querier)
-	otpRepository := repository.NewOtpRepository(redisClient, cfg)
-	unitOfWork := repository.NewUnitOfWork(cfg, db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier, cfg)
+	otpRepository := repository.NewOtpRepository(redisClient, &configOptions.OTP)
+	unitOfWork := repository.NewUnitOfWork(db, querier)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
 
 	userService := service.NewUserService(userRepository)
-	jwtService := service.NewJwtService(cfg)
-	refreshTokenService := service.NewRefreshTokenService(cfg, unitOfWork, refreshTokenRepository, jwtService)
-	otpService := service.NewOtpService(otpRepository, userRepository, resetTokenRepository, emailSender, cfg)
+	jwtService := service.NewJwtService(&configOptions.Jwt)
+	refreshTokenService := service.NewRefreshTokenService(
+		&configOptions.RefreshToken,
+		unitOfWork,
+		refreshTokenRepository,
+		jwtService,
+	)
+	otpService := service.NewOtpService(
+		otpRepository,
+		userRepository,
+		resetTokenRepository,
+		emailSender,
+		&configOptions.OTP,
+		&configOptions.ResetToken,
+	)
 	authService := service.NewAuthService(
-		cfg,
+		&configOptions.ResetToken,
 		unitOfWork,
 		userRepository,
 		resetTokenRepository,
@@ -78,7 +94,10 @@ func setupDependencies(cfg *configs.Config, db *sql.DB, redisClient *redis.Clien
 		otpService,
 	)
 
-	cookieManager := cookie.NewCookieManager(cfg)
+	cookieManager := cookie.NewCookieManager(
+		configOptions.Environment,
+		&configOptions.RefreshToken,
+	)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 

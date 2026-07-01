@@ -19,7 +19,7 @@ type RefreshTokenService interface {
 }
 
 type refreshTokenService struct {
-	cfg                    *configs.Config
+	refreshTokenOptions    *configs.RefreshToken
 	unitOfWork             repository.UnitOfWork
 	refreshTokenRepository repository.RefreshTokenRepository
 	jwtService             JwtService
@@ -31,13 +31,13 @@ var (
 )
 
 func NewRefreshTokenService(
-	cfg *configs.Config,
+	refreshTokenOptions *configs.RefreshToken,
 	unitOfWork repository.UnitOfWork,
 	refreshTokenRepository repository.RefreshTokenRepository,
 	jwtService JwtService,
 ) RefreshTokenService {
 	return &refreshTokenService{
-		cfg:                    cfg,
+		refreshTokenOptions:    refreshTokenOptions,
 		unitOfWork:             unitOfWork,
 		refreshTokenRepository: refreshTokenRepository,
 		jwtService:             jwtService,
@@ -49,7 +49,7 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 		ID:        uuid.New(),
 		UserID:    userID,
 		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
+		ExpiresAt: time.Now().Add(s.refreshTokenOptions.Duration),
 	}
 
 	if err := s.refreshTokenRepository.Save(ctx, &refreshToken); err != nil {
@@ -85,7 +85,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 			ID:        uuid.New(),
 			UserID:    userIDString,
 			CreatedAt: time.Now(),
-			ExpiresAt: time.Now().Add(s.cfg.RefreshToken.Duration),
+			ExpiresAt: time.Now().Add(s.refreshTokenOptions.Duration),
 		}
 		refreshTokenString = newToken.ID.String()
 
