@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/mocks"
-	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
+	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
 func TestAuthService_RegisterUser(t *testing.T) {

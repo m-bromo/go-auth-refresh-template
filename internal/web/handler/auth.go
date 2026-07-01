@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/m-bromo/go-auth-template/internal/domain"
-	"github.com/m-bromo/go-auth-template/internal/pkg/validation"
 	"github.com/m-bromo/go-auth-template/internal/service"
 	"github.com/m-bromo/go-auth-template/internal/web/cookie"
 	"github.com/m-bromo/go-auth-template/internal/web/models"
+	"github.com/m-bromo/go-auth-template/pkg/validation"
 )
 
 type AuthHandler struct {

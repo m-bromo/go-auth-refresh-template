@@ -25,9 +25,9 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 	"github.com/m-bromo/go-auth-template/internal/infra/email"
-	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/internal/service"
+	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
 var db *sql.DB

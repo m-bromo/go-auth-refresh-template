@@ -10,8 +10,8 @@ import (
 	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/mocks"
-	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/service"
+	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
 func TestOtpService_SendCode(t *testing.T) {
