@@ -2,21 +2,21 @@ package domain
 
 import "errors"
 
-type ErrorType string
+type ErrorCode string
 
 const (
-	BadRequest          ErrorType = "BAD_REQUEST"
-	Unauthorized        ErrorType = "UNAUTHORIZED"
-	Forbidden           ErrorType = "FORBIDDEN"
-	NotFound            ErrorType = "NOT_FOUND"
-	Conflict            ErrorType = "CONFLICT"
-	UnprocessableEntity ErrorType = "UNPROCESSABLE_ENTITY"
+	InvalidInput     ErrorCode = "INVALID_INPUT"
+	Unauthenticated  ErrorCode = "UNAUTHENTICATED"
+	PermissionDenied ErrorCode = "PERMISSION_DENIED"
+	ResourceNotFound ErrorCode = "RESOURCE_NOT_FOUND"
+	AlreadyExists    ErrorCode = "ALREADY_EXISTS"
+	InvalidState     ErrorCode = "INVALID_STATE"
 )
 
 type DomainError struct {
-	Err       error
-	ErrorType ErrorType
-	Message   string
+	Err     error
+	Code    ErrorCode
+	Message string
 }
 
 func (e *DomainError) Error() string {
@@ -27,62 +27,34 @@ func (e *DomainError) Unwrap() error {
 	return e.Err
 }
 
-func NewDomainError(message string, errType ErrorType, errs ...error) *DomainError {
+func NewDomainError(message string, code ErrorCode, errs ...error) *DomainError {
 	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: errType,
-		Message:   message,
+		Err:     errors.Join(errs...),
+		Code:    code,
+		Message: message,
 	}
 }
 
-func NewBadRequestError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: BadRequest,
-		Message:   message,
-	}
+func NewInvalidInputError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, InvalidInput, errs...)
 }
 
-func NewUnauthorizedError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: Unauthorized,
-		Message:   message,
-	}
+func NewUnauthenticatedError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, Unauthenticated, errs...)
 }
 
-func NewForbiddenError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: Forbidden,
-		Message:   message,
-	}
+func NewPermissionDeniedError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, PermissionDenied, errs...)
 }
 
-func NewNotFoundError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: NotFound,
-		Message:   message,
-	}
+func NewResourceNotFoundError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, ResourceNotFound, errs...)
 }
 
-func NewConflictError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: Conflict,
-		Message:   message,
-	}
+func NewAlreadyExistsError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, AlreadyExists, errs...)
 }
 
-func NewUnprocessableEntityError(message string, errs ...error) *DomainError {
-	return &DomainError{
-		Err:       errors.Join(errs...),
-		ErrorType: UnprocessableEntity,
-		Message:   message,
-	}
-}
-
-func NewConflicError(message string, errs ...error) *DomainError {
-	return NewConflictError(message, errs...)
+func NewInvalidStateError(message string, errs ...error) *DomainError {
+	return NewDomainError(message, InvalidState, errs...)
 }

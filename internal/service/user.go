@@ -35,7 +35,7 @@ func NewUserService(userFinder UserByIDFinder) UserService {
 func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, domain.NewBadRequestError("invalid user id", ErrInvalidUserID)
+		return nil, domain.NewInvalidInputError("invalid user id", ErrInvalidUserID)
 	}
 
 	user, err := s.userFinder.GetByID(ctx, uuid)
@@ -44,7 +44,7 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, 
 	}
 
 	if user == nil {
-		return nil, domain.NewNotFoundError("user not found", ErrUserNotFound)
+		return nil, domain.NewResourceNotFoundError("user not found", ErrUserNotFound)
 	}
 
 	return user, nil

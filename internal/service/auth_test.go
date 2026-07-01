@@ -23,7 +23,7 @@ func TestAuthService_RegisterUser(t *testing.T) {
 		name          string
 		saveErr       error
 		wantErr       error
-		wantErrType   domain.ErrorType
+		wantErrCode   domain.ErrorCode
 		wantWrapped   string
 		wantSavedUser bool
 	}{
@@ -35,7 +35,7 @@ func TestAuthService_RegisterUser(t *testing.T) {
 			name:        "maps duplicated email to conflict domain error",
 			saveErr:     repository.ErrEmailAlreadyRegistered,
 			wantErr:     service.ErrUserAlreadyRegistered,
-			wantErrType: domain.Conflict,
+			wantErrCode: domain.AlreadyExists,
 		},
 		{
 			name:        "wraps repository error",
@@ -70,7 +70,7 @@ func TestAuthService_RegisterUser(t *testing.T) {
 			err := authService.RegisterUser(t.Context(), user)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 				return
 			}
 
@@ -129,7 +129,7 @@ func TestAuthService_Login(t *testing.T) {
 		wantAccessToken  string
 		wantRefreshToken string
 		wantErr          error
-		wantErrType      domain.ErrorType
+		wantErrCode      domain.ErrorCode
 		wantWrapped      string
 	}{
 		{
@@ -152,7 +152,7 @@ func TestAuthService_Login(t *testing.T) {
 			name:          "rejects missing user",
 			inputPassword: "password@123",
 			wantErr:       service.ErrUserNotRegistered,
-			wantErrType:   domain.Unauthorized,
+			wantErrCode:   domain.Unauthenticated,
 		},
 		{
 			name:          "rejects invalid password",
@@ -163,7 +163,7 @@ func TestAuthService_Login(t *testing.T) {
 				Password: hashedPassword,
 			},
 			wantErr:     service.ErrInvalidCredentials,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name:          "wraps access token generation error",
@@ -226,7 +226,7 @@ func TestAuthService_Login(t *testing.T) {
 			})
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 				return
 			}
 
@@ -270,7 +270,7 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 		wantAccessToken  string
 		wantRefreshToken string
 		wantErr          error
-		wantErrType      domain.ErrorType
+		wantErrCode      domain.ErrorCode
 		wantWrapped      string
 	}{
 		{
@@ -290,7 +290,7 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 		{
 			name:        "rejects missing user",
 			wantErr:     service.ErrUserNotRegistered,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name: "wraps otp verification error",
@@ -360,7 +360,7 @@ func TestAuthService_LoginWithOtp(t *testing.T) {
 			accessToken, refreshToken, err := authService.LoginWithOtp(t.Context(), "user@test.com", "123456")
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 				return
 			}
 
@@ -407,7 +407,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 		updatePasswordErr       error
 		revokeTokensErr         error
 		wantErr                 error
-		wantErrType             domain.ErrorType
+		wantErrCode             domain.ErrorCode
 		wantWrapped             string
 		wantUnitOfWorkCalls     int
 		wantConsumeCalls        int
@@ -442,7 +442,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 		{
 			name:                "rejects missing reset token",
 			wantErr:             service.ErrInvalidResetToken,
-			wantErrType:         domain.Unauthorized,
+			wantErrCode:         domain.Unauthenticated,
 			wantUnitOfWorkCalls: 1,
 			wantConsumeCalls:    1,
 		},
@@ -544,7 +544,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 			}
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 				return
 			}
 
@@ -593,7 +593,7 @@ func TestAuthService_ResetPassword(t *testing.T) {
 	}
 }
 
-func assertDomainError(t *testing.T, err error, wantType domain.ErrorType, wantErr error) {
+func assertDomainError(t *testing.T, err error, wantCode domain.ErrorCode, wantErr error) {
 	t.Helper()
 
 	if err == nil {
@@ -605,8 +605,8 @@ func assertDomainError(t *testing.T, err error, wantType domain.ErrorType, wantE
 		t.Fatalf("error = %T, want *domain.DomainError", err)
 	}
 
-	if domainErr.ErrorType != wantType {
-		t.Fatalf("domain error type = %q, want %q", domainErr.ErrorType, wantType)
+	if domainErr.Code != wantCode {
+		t.Fatalf("domain error code = %q, want %q", domainErr.Code, wantCode)
 	}
 
 	if !errors.Is(domainErr, wantErr) {

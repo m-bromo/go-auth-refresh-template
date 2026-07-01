@@ -67,7 +67,7 @@ func TestJwtService_ValidateAccessToken(t *testing.T) {
 		bearerToken string
 		wantSubject string
 		wantErr     error
-		wantErrType domain.ErrorType
+		wantErrCode domain.ErrorCode
 		wantWrapped string
 	}{
 		{
@@ -79,25 +79,25 @@ func TestJwtService_ValidateAccessToken(t *testing.T) {
 			name:        "rejects empty token",
 			bearerToken: "Bearer ",
 			wantErr:     service.ErrTokenNotProvided,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name:        "rejects raw token format",
 			bearerToken: validToken,
 			wantErr:     service.ErrInvalidToken,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name:        "rejects malformed token",
 			bearerToken: "Bearer not-a-jwt",
 			wantErr:     service.ErrInvalidToken,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name:        "rejects wrong signature",
 			bearerToken: "Bearer " + wrongSecretTokenString,
 			wantErr:     service.ErrInvalidToken,
-			wantErrType: domain.Unauthorized,
+			wantErrCode: domain.Unauthenticated,
 		},
 		{
 			name:        "wraps invalid signing method",
@@ -113,7 +113,7 @@ func TestJwtService_ValidateAccessToken(t *testing.T) {
 			claims, err := jwtService.ValidateAccessToken(tt.bearerToken)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 				return
 			}
 

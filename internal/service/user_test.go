@@ -29,7 +29,7 @@ func TestUserService_GetProfile(t *testing.T) {
 		getByIDErr    error
 		wantUser      *domain.User
 		wantErr       error
-		wantErrType   domain.ErrorType
+		wantErrCode   domain.ErrorCode
 		wantWrapped   string
 		wantRepoCalls int
 	}{
@@ -44,7 +44,7 @@ func TestUserService_GetProfile(t *testing.T) {
 			name:        "rejects invalid user id",
 			id:          "not-a-uuid",
 			wantErr:     service.ErrInvalidUserID,
-			wantErrType: domain.BadRequest,
+			wantErrCode: domain.InvalidInput,
 		},
 		{
 			name:          "wraps repository error",
@@ -57,7 +57,7 @@ func TestUserService_GetProfile(t *testing.T) {
 			name:          "rejects missing user",
 			id:            userID.String(),
 			wantErr:       service.ErrUserNotFound,
-			wantErrType:   domain.NotFound,
+			wantErrCode:   domain.ResourceNotFound,
 			wantRepoCalls: 1,
 		},
 	}
@@ -76,7 +76,7 @@ func TestUserService_GetProfile(t *testing.T) {
 			user, err := userService.GetProfile(t.Context(), tt.id)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 			} else if tt.wantWrapped != "" {
 				assertWrappedError(t, err, tt.wantWrapped, repositoryErr)
 			} else if err != nil {

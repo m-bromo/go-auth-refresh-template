@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/internal/domain"
@@ -21,12 +22,16 @@ func NewSqlcResetTokenRepository(querier sqlc.Querier) *SqlcResetTokenRepository
 }
 
 func (r *SqlcResetTokenRepository) Save(ctx context.Context, token *domain.ResetToken) error {
-	return r.querier.SavePasswordResetToken(ctx, sqlc.SavePasswordResetTokenParams{
+	if err := r.querier.SavePasswordResetToken(ctx, sqlc.SavePasswordResetTokenParams{
 		ID:        token.ID,
 		UserID:    token.UserID,
 		TokenHash: token.TokenHash,
 		ExpiresAt: token.ExpiresAt,
-	})
+	}); err != nil {
+		return fmt.Errorf("saving password reset token: %w", err)
+	}
+
+	return nil
 }
 
 func (r *SqlcResetTokenRepository) Consume(ctx context.Context, tokenHash string) (*domain.ResetToken, error) {
@@ -36,7 +41,7 @@ func (r *SqlcResetTokenRepository) Consume(ctx context.Context, tokenHash string
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("consuming password reset token: %w", err)
 	}
 
 	return &domain.ResetToken{
@@ -51,7 +56,7 @@ func (r *SqlcResetTokenRepository) Consume(ctx context.Context, tokenHash string
 
 func (r *SqlcResetTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	if err := r.querier.DeletePasswordResetTokensByUserID(ctx, userID); err != nil {
-		return err
+		return fmt.Errorf("deleting password reset tokens by user ID: %w", err)
 	}
 
 	return nil

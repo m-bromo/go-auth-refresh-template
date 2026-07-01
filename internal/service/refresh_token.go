@@ -67,7 +67,7 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string) (string, string, error) {
 	tokenID, err := uuid.Parse(tokenIDString)
 	if err != nil {
-		return "", "", domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
+		return "", "", domain.NewUnauthenticatedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
 	var accessTokenString, refreshTokenString string
@@ -78,7 +78,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 		}
 
 		if userID == "" {
-			return domain.NewUnauthorizedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
+			return domain.NewUnauthenticatedError("token not found or expired", ErrRefreshTokenNotFoundOrExpired)
 		}
 
 		userIDString, err := uuid.Parse(userID)
@@ -114,7 +114,7 @@ func (s *refreshTokenService) Refresh(ctx context.Context, tokenIDString string)
 func (s *refreshTokenService) Revoke(ctx context.Context, tokenIDString string) error {
 	tokenID, err := uuid.Parse(tokenIDString)
 	if err != nil {
-		return domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
+		return domain.NewUnauthenticatedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
 	if err := s.refreshTokenStore.Delete(ctx, tokenID); err != nil {

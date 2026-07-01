@@ -42,7 +42,7 @@ func (s *authMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 
 		if requestedUserID := r.PathValue("id"); requestedUserID != claims.Subject {
-			handler.HandleError(w, domain.NewForbiddenError("you are not allowed to access this user", ErrUserForbidden))
+			handler.HandleError(w, domain.NewPermissionDeniedError("you are not allowed to access this user", ErrUserForbidden))
 			return
 		}
 

@@ -313,8 +313,8 @@ func TestRegisterUser_Integration(t *testing.T) {
 			t.Fatalf("expected duplicate email to wrap a domain error, got: %v", err)
 		}
 
-		if domainErr.ErrorType != domain.Conflict {
-			t.Errorf("expected duplicate email to return error type %q, got %q", domain.Conflict, domainErr.ErrorType)
+		if domainErr.Code != domain.AlreadyExists {
+			t.Errorf("expected duplicate email to return error code %q, got %q", domain.AlreadyExists, domainErr.Code)
 		}
 
 		if !errors.Is(domainErr, service.ErrUserAlreadyRegistered) {
@@ -460,8 +460,8 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 		t.Fatalf("expected consumed otp error to wrap a domain error, got: %v", err)
 	}
 
-	if domainErr.ErrorType != domain.NotFound {
-		t.Errorf("expected consumed otp to return error type %q, got %q", domain.NotFound, domainErr.ErrorType)
+	if domainErr.Code != domain.ResourceNotFound {
+		t.Errorf("expected consumed otp to return error code %q, got %q", domain.ResourceNotFound, domainErr.Code)
 	}
 
 	if !errors.Is(domainErr, service.ErrInvalidOtpCode) {
@@ -582,7 +582,7 @@ func TestRefreshToken_Integration(t *testing.T) {
 		t.Fatalf("expected old refresh token error to wrap a domain error, got: %v", err)
 	}
 
-	if domainErr.ErrorType != domain.Unauthorized {
-		t.Errorf("expected old refresh token to return error type %q, got %q", domain.Unauthorized, domainErr.ErrorType)
+	if domainErr.Code != domain.Unauthenticated {
+		t.Errorf("expected old refresh token to return error code %q, got %q", domain.Unauthenticated, domainErr.Code)
 	}
 }

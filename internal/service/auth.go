@@ -69,7 +69,7 @@ func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error
 
 	if err := s.userStore.Save(ctx, user); err != nil {
 		if errors.Is(err, repository.ErrEmailAlreadyRegistered) {
-			return domain.NewConflictError("user email is already registered", ErrUserAlreadyRegistered)
+			return domain.NewAlreadyExistsError("user email is already registered", ErrUserAlreadyRegistered)
 		}
 
 		return fmt.Errorf("saving user to repository: %w", err)
@@ -85,11 +85,11 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 	}
 
 	if existingUser == nil {
-		return "", "", domain.NewUnauthorizedError("invalid email or password", ErrUserNotRegistered)
+		return "", "", domain.NewUnauthenticatedError("invalid email or password", ErrUserNotRegistered)
 	}
 
 	if !secure.CheckPassword(existingUser.Password, user.Password) {
-		return "", "", domain.NewUnauthorizedError("invalid email or password", ErrInvalidCredentials)
+		return "", "", domain.NewUnauthenticatedError("invalid email or password", ErrInvalidCredentials)
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(existingUser.ID)
@@ -112,7 +112,7 @@ func (s *authService) LoginWithOtp(ctx context.Context, email string, code strin
 	}
 
 	if existingUser == nil {
-		return "", "", domain.NewUnauthorizedError("invalid email or otp code", ErrUserNotRegistered)
+		return "", "", domain.NewUnauthenticatedError("invalid email or otp code", ErrUserNotRegistered)
 	}
 
 	if err := s.otpService.VerifyLoginCode(ctx, code, email); err != nil {
@@ -147,7 +147,7 @@ func (s *authService) ResetPassword(ctx context.Context, resetToken string, pass
 		}
 
 		if token == nil {
-			return domain.NewUnauthorizedError("invalid reset token", ErrInvalidResetToken)
+			return domain.NewUnauthenticatedError("invalid reset token", ErrInvalidResetToken)
 		}
 
 		if err := repos.UserRepository.UpdatePassword(ctx, token.UserID, hashedPassword); err != nil {

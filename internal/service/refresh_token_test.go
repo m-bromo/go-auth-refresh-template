@@ -106,7 +106,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 		wantAccessToken     string
 		wantNewRefreshToken bool
 		wantErr             error
-		wantErrType         domain.ErrorType
+		wantErrCode         domain.ErrorCode
 		wantWrapped         string
 		wantConsumeCalls    int
 		wantSaveCalls       int
@@ -126,7 +126,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 			name:          "rejects malformed refresh token",
 			tokenIDString: "not-a-uuid",
 			wantErr:       service.ErrInvalidRefreshToken,
-			wantErrType:   domain.Unauthorized,
+			wantErrCode:   domain.Unauthenticated,
 		},
 		{
 			name:             "wraps consume error",
@@ -139,7 +139,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 			name:             "rejects missing refresh token",
 			tokenIDString:    tokenID.String(),
 			wantErr:          service.ErrRefreshTokenNotFoundOrExpired,
-			wantErrType:      domain.Unauthorized,
+			wantErrCode:      domain.Unauthenticated,
 			wantConsumeCalls: 1,
 		},
 		{
@@ -201,7 +201,7 @@ func TestRefreshTokenService_Refresh(t *testing.T) {
 			accessToken, newRefreshToken, err := refreshTokenService.Refresh(t.Context(), tt.tokenIDString)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 			} else if tt.wantWrapped != "" {
 				assertWrappedError(t, err, tt.wantWrapped, firstNonNil(tt.consumeErr, tt.saveErr, tt.generateTokenErr))
 			} else if err != nil {
@@ -248,7 +248,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 		tokenIDString   string
 		deleteErr       error
 		wantErr         error
-		wantErrType     domain.ErrorType
+		wantErrCode     domain.ErrorCode
 		wantWrapped     string
 		wantDeleteCalls int
 	}{
@@ -261,7 +261,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 			name:          "rejects malformed refresh token",
 			tokenIDString: "not-a-uuid",
 			wantErr:       service.ErrInvalidRefreshToken,
-			wantErrType:   domain.Unauthorized,
+			wantErrCode:   domain.Unauthenticated,
 		},
 		{
 			name:            "wraps delete error",
@@ -291,7 +291,7 @@ func TestRefreshTokenService_Revoke(t *testing.T) {
 			err := refreshTokenService.Revoke(t.Context(), tt.tokenIDString)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 			} else if tt.wantWrapped != "" {
 				assertWrappedError(t, err, tt.wantWrapped, deleteErr)
 			} else if err != nil {

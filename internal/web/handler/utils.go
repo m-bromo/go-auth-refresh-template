@@ -52,6 +52,18 @@ func HandleError(w http.ResponseWriter, err error) {
 
 	if errors.As(err, &domainErr) {
 		apiErr = newClientErrorFromDomainError(domainErr)
+		if apiErr == nil {
+			HandleJSON(w, http.StatusInternalServerError, nil)
+			slog.Error(
+				"unknown domain error code",
+				"code",
+				domainErr.Code,
+				"error",
+				domainErr,
+			)
+			return
+		}
+
 		slog.Warn("domain error", "error", domainErr)
 		HandleJSON(w, apiErr.Code, apiErr)
 		return
@@ -69,20 +81,20 @@ func HandleError(w http.ResponseWriter, err error) {
 }
 
 func newClientErrorFromDomainError(err *domain.DomainError) *clienterrors.ClientErr {
-	switch err.ErrorType {
-	case domain.BadRequest:
+	switch err.Code {
+	case domain.InvalidInput:
 		return clienterrors.NewBadRequestError(err.Message, err)
-	case domain.Unauthorized:
+	case domain.Unauthenticated:
 		return clienterrors.NewUnauthorizedError(err.Message, err)
-	case domain.Forbidden:
+	case domain.PermissionDenied:
 		return clienterrors.NewForbiddenError(err.Message, err)
-	case domain.NotFound:
+	case domain.ResourceNotFound:
 		return clienterrors.NewNotFoundError(err.Message, err)
-	case domain.Conflict:
+	case domain.AlreadyExists:
 		return clienterrors.NewConflictError(err.Message, err)
-	case domain.UnprocessableEntity:
+	case domain.InvalidState:
 		return clienterrors.NewUnprocessableEntityError(err.Message, err)
 	default:
-		return clienterrors.NewUnprocessableEntityError(err.Message, err)
+		return nil
 	}
 }

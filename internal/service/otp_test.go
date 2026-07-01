@@ -139,7 +139,7 @@ func TestOtpService_VerifyLoginCode(t *testing.T) {
 		consumed         bool
 		consumeErr       error
 		wantErr          error
-		wantErrType      domain.ErrorType
+		wantErrCode      domain.ErrorCode
 		wantWrapped      string
 		wantConsumeCalls int
 	}{
@@ -160,7 +160,7 @@ func TestOtpService_VerifyLoginCode(t *testing.T) {
 			name:             "rejects not consumed code",
 			code:             "000000",
 			wantErr:          service.ErrInvalidOtpCode,
-			wantErrType:      domain.NotFound,
+			wantErrCode:      domain.ResourceNotFound,
 			wantConsumeCalls: 1,
 		},
 	}
@@ -187,7 +187,7 @@ func TestOtpService_VerifyLoginCode(t *testing.T) {
 			err := otpService.VerifyLoginCode(t.Context(), tt.code, "user@test.com")
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 			} else if tt.wantWrapped != "" {
 				assertWrappedError(t, err, tt.wantWrapped, tt.consumeErr)
 			} else if err != nil {
@@ -228,7 +228,7 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 		getUserErr       error
 		saveResetErr     error
 		wantErr          error
-		wantErrType      domain.ErrorType
+		wantErrCode      domain.ErrorCode
 		wantWrapped      string
 		wantConsumeCalls int
 		wantSaveCalls    int
@@ -254,7 +254,7 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 			name:             "rejects not consumed code",
 			code:             "000000",
 			wantErr:          service.ErrInvalidOtpCode,
-			wantErrType:      domain.NotFound,
+			wantErrCode:      domain.ResourceNotFound,
 			wantConsumeCalls: 1,
 		},
 		{
@@ -270,7 +270,7 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 			code:             validCode,
 			consumed:         true,
 			wantErr:          service.ErrUserNotRegistered,
-			wantErrType:      domain.Unauthorized,
+			wantErrCode:      domain.Unauthenticated,
 			wantConsumeCalls: 1,
 		},
 		{
@@ -319,7 +319,7 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 			resetTokenExpiresUntil := time.Now().Add(cfg.ResetToken.Duration)
 
 			if tt.wantErr != nil {
-				assertDomainError(t, err, tt.wantErrType, tt.wantErr)
+				assertDomainError(t, err, tt.wantErrCode, tt.wantErr)
 			} else if tt.wantWrapped != "" {
 				assertWrappedError(
 					t,

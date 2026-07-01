@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -35,11 +36,14 @@ func (r *SqlcUserRepository) Save(ctx context.Context, user *domain.User) error 
 		Username: user.Username,
 	})
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return ErrEmailAlreadyRegistered
+		return fmt.Errorf(
+			"saving user: %w",
+			errors.Join(ErrEmailAlreadyRegistered, err),
+		)
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("saving user: %w", err)
 	}
 
 	return nil
@@ -52,7 +56,7 @@ func (r *SqlcUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("getting user by ID: %w", err)
 	}
 
 	return &domain.User{
@@ -70,7 +74,7 @@ func (r *SqlcUserRepository) GetByEmail(ctx context.Context, email string) (*dom
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("getting user by email: %w", err)
 	}
 
 	return &domain.User{
@@ -86,7 +90,7 @@ func (r *SqlcUserRepository) UpdatePassword(ctx context.Context, userID uuid.UUI
 		ID:       userID,
 		Password: password,
 	}); err != nil {
-		return err
+		return fmt.Errorf("updating user password: %w", err)
 	}
 
 	return nil

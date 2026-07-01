@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -27,7 +28,7 @@ func (r *SqlcRefreshTokenRepository) Save(ctx context.Context, token *domain.Ref
 		CreatedAt: token.CreatedAt,
 		ExpiresAt: token.ExpiresAt,
 	}); err != nil {
-		return fmt.Errorf("save refresh token: %w", err)
+		return fmt.Errorf("saving refresh token: %w", err)
 	}
 
 	return nil
@@ -35,12 +36,12 @@ func (r *SqlcRefreshTokenRepository) Save(ctx context.Context, token *domain.Ref
 
 func (r *SqlcRefreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error) {
 	token, err := r.querier.GetRefreshTokenByID(ctx, tokenID)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("get refresh token: %w", err)
+		return nil, fmt.Errorf("getting refresh token: %w", err)
 	}
 
 	return &domain.RefreshToken{
@@ -53,12 +54,12 @@ func (r *SqlcRefreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID)
 
 func (r *SqlcRefreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID) (string, error) {
 	token, err := r.querier.ConsumeRefreshToken(ctx, tokenID)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("consume refresh token: %w", err)
+		return "", fmt.Errorf("consuming refresh token: %w", err)
 	}
 
 	return token.UserID.String(), nil
@@ -66,7 +67,7 @@ func (r *SqlcRefreshTokenRepository) Consume(ctx context.Context, tokenID uuid.U
 
 func (r *SqlcRefreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) error {
 	if err := r.querier.DeleteRefreshToken(ctx, tokenID); err != nil {
-		return fmt.Errorf("delete refresh token: %w", err)
+		return fmt.Errorf("deleting refresh token: %w", err)
 	}
 
 	return nil
@@ -74,7 +75,7 @@ func (r *SqlcRefreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UU
 
 func (r *SqlcRefreshTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	if err := r.querier.DeleteRefreshTokensByUserID(ctx, userID); err != nil {
-		return fmt.Errorf("delete refresh token: %w", err)
+		return fmt.Errorf("deleting refresh tokens by user ID: %w", err)
 	}
 
 	return nil

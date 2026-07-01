@@ -135,7 +135,7 @@ func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	c, err := h.cookieManager.GetCookie(r)
 	if err != nil {
-		HandleError(w, domain.NewUnauthorizedError("refresh token was not provided", service.ErrInvalidRefreshToken))
+		HandleError(w, domain.NewUnauthenticatedError("refresh token was not provided", service.ErrInvalidRefreshToken))
 		return
 	}
 

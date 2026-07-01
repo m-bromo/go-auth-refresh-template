@@ -52,17 +52,17 @@ func (s *jwtService) GenerateAccessToken(userID uuid.UUID) (string, error) {
 
 func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredClaims, error) {
 	if !strings.HasPrefix(bearerToken, "Bearer ") {
-		return nil, domain.NewUnauthorizedError("invalid token format", ErrInvalidToken)
+		return nil, domain.NewUnauthenticatedError("invalid token format", ErrInvalidToken)
 	}
 
 	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
 	if tokenString == "" {
-		return nil, domain.NewUnauthorizedError("token string was not provided", ErrTokenNotProvided)
+		return nil, domain.NewUnauthenticatedError("token string was not provided", ErrTokenNotProvided)
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, domain.NewUnauthorizedError("invalid token signing method", ErrInvalidSigningMethod)
+			return nil, domain.NewUnauthenticatedError("invalid token signing method", ErrInvalidSigningMethod)
 		}
 
 		return []byte(s.jwtOptions.PrivateKey), nil
@@ -73,12 +73,12 @@ func (s *jwtService) ValidateAccessToken(bearerToken string) (*jwt.RegisteredCla
 			return nil, fmt.Errorf("parsing access token: %w", domainErr)
 		}
 
-		return nil, domain.NewUnauthorizedError("invalid token", ErrInvalidToken)
+		return nil, domain.NewUnauthenticatedError("invalid token", ErrInvalidToken)
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return nil, domain.NewUnauthorizedError("invalid token claims", ErrInvalidClaims)
+		return nil, domain.NewUnauthenticatedError("invalid token claims", ErrInvalidClaims)
 	}
 
 	return claims, nil

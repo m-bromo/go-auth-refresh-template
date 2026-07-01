@@ -107,7 +107,7 @@ func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email str
 	}
 
 	if !consumed {
-		return domain.NewNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
+		return domain.NewResourceNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
 	}
 
 	return nil
@@ -121,7 +121,7 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 	}
 
 	if !consumed {
-		return "", domain.NewNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
+		return "", domain.NewResourceNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
 	}
 
 	user, err := s.userFinder.GetByEmail(ctx, email)
@@ -130,7 +130,7 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 	}
 
 	if user == nil {
-		return "", domain.NewUnauthorizedError("invalid email or otp code", ErrUserNotRegistered)
+		return "", domain.NewUnauthenticatedError("invalid email or otp code", ErrUserNotRegistered)
 	}
 
 	resetToken, err := secure.GenerateResetToken()
