@@ -3,16 +3,16 @@ package cookie
 import (
 	"net/http"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 )
 
 const cookieName = "auth_cookie"
 
 type CookieManager struct {
-	cfg *config.Config
+	cfg *configs.Config
 }
 
-func NewCookieManager(cfg *config.Config) *CookieManager {
+func NewCookieManager(cfg *configs.Config) *CookieManager {
 	return &CookieManager{
 		cfg: cfg,
 	}

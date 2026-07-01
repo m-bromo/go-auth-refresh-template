@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -15,12 +15,12 @@ type OtpRepository interface {
 
 type otpRepository struct {
 	redisClient *redis.Client
-	cfg         *config.Config
+	cfg         *configs.Config
 }
 
 const consumeCodeMaxRetries = 3
 
-func NewOtpRepository(redisClient *redis.Client, cfg *config.Config) OtpRepository {
+func NewOtpRepository(redisClient *redis.Client, cfg *configs.Config) OtpRepository {
 	return &otpRepository{
 		redisClient: redisClient,
 		cfg:         cfg,

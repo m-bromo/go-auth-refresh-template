@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 )
 
@@ -25,10 +25,10 @@ type JwtService interface {
 }
 
 type jwtService struct {
-	cfg *config.Config
+	cfg *configs.Config
 }
 
-func NewJwtService(cfg *config.Config) JwtService {
+func NewJwtService(cfg *configs.Config) JwtService {
 	return &jwtService{
 		cfg: cfg,
 	}

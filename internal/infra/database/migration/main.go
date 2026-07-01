@@ -3,13 +3,13 @@ package main
 import (
 	"log"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/infra/database"
 	"github.com/pressly/goose/v3"
 )
 
 func main() {
-	cfg, err := config.NewConfig()
+	cfg, err := configs.NewConfig()
 	if err != nil {
 		log.Fatal(err.Error())
 	}

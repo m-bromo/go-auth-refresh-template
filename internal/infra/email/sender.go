@@ -6,7 +6,7 @@ import (
 	"embed"
 	"text/template"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/resend/resend-go/v3"
 )
 
@@ -16,7 +16,7 @@ type EmailSender interface {
 
 type emailSender struct {
 	client *resend.Client
-	cfg    *config.Config
+	cfg    *configs.Config
 }
 
 //go:embed templates/send-otp-code.html
@@ -24,7 +24,7 @@ var templateFS embed.FS
 
 const otpTemplatePath = "templates/send-otp-code.html"
 
-func NewEmailSender(cfg *config.Config) EmailSender {
+func NewEmailSender(cfg *configs.Config) EmailSender {
 	client := resend.NewClient(cfg.Resend.ApiKey)
 
 	return &emailSender{

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
 	"github.com/m-bromo/go-auth-template/internal/repository"
@@ -27,7 +27,7 @@ type AuthService interface {
 }
 
 type authService struct {
-	cfg                  *config.Config
+	cfg                  *configs.Config
 	unitOfWork           repository.UnitOfWork
 	userRepository       repository.UserRepository
 	resetTokenRepository repository.ResetTokenRepository
@@ -37,7 +37,7 @@ type authService struct {
 }
 
 func NewAuthService(
-	cfg *config.Config,
+	cfg *configs.Config,
 	unitOfWork repository.UnitOfWork,
 	userRepository repository.UserRepository,
 	resetTokenRepository repository.ResetTokenRepository,

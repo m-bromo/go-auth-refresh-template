@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
@@ -19,7 +19,7 @@ type RefreshTokenService interface {
 }
 
 type refreshTokenService struct {
-	cfg                    *config.Config
+	cfg                    *configs.Config
 	unitOfWork             repository.UnitOfWork
 	refreshTokenRepository repository.RefreshTokenRepository
 	jwtService             JwtService
@@ -31,7 +31,7 @@ var (
 )
 
 func NewRefreshTokenService(
-	cfg *config.Config,
+	cfg *configs.Config,
 	unitOfWork repository.UnitOfWork,
 	refreshTokenRepository repository.RefreshTokenRepository,
 	jwtService JwtService,

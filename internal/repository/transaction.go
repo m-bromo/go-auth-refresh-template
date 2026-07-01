@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
@@ -20,13 +20,13 @@ type Repositories struct {
 }
 
 type unitOfWork struct {
-	cfg     *config.Config
+	cfg     *configs.Config
 	db      *sql.DB
 	queries *sqlc.Queries
 }
 
 func NewUnitOfWork(
-	cfg *config.Config,
+	cfg *configs.Config,
 	db *sql.DB,
 	queries *sqlc.Queries,
 ) UnitOfWork {

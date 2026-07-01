@@ -4,12 +4,12 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/app"
 )
 
 func main() {
-	cfg, err := config.NewConfig()
+	cfg, err := configs.NewConfig()
 	if err != nil {
 		log.Fatal(err.Error())
 	}

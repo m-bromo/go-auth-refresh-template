@@ -6,10 +6,10 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 )
 
-func NewPostgresConnection(cfg *config.Config) (*sql.DB, error) {
+func NewPostgresConnection(cfg *configs.Config) (*sql.DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
 		cfg.Postgres.Host,
 		cfg.Postgres.Port,

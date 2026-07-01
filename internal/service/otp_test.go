@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/mocks"
 	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
@@ -390,21 +390,21 @@ func TestOtpService_VerifyPasswordResetCode(t *testing.T) {
 	}
 }
 
-func testConfig() *config.Config {
-	return &config.Config{
-		Jwt: config.Jwt{
+func testConfig() *configs.Config {
+	return &configs.Config{
+		Jwt: configs.Jwt{
 			PrivateKey: "test-secret",
 			Duration:   15 * time.Minute,
 		},
-		RefreshToken: config.RefreshToken{
+		RefreshToken: configs.RefreshToken{
 			Duration: 24 * time.Hour,
 		},
-		OTP: config.OTP{
+		OTP: configs.OTP{
 			MaxValue: 1000000,
 			Secret:   "otp-secret",
 			Duration: 2 * time.Minute,
 		},
-		ResetToken: config.ResetToken{
+		ResetToken: configs.ResetToken{
 			Secret:   "reset-token-secret",
 			Duration: 10 * time.Minute,
 		},

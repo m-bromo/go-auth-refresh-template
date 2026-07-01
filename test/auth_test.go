@@ -21,7 +21,7 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 	"github.com/m-bromo/go-auth-template/internal/infra/email"
@@ -36,7 +36,7 @@ var redisClient *redis.Client
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	cfg, err := config.NewConfig("../.env")
+	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
 		log.Fatalf("failed to setup config: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestMain(m *testing.M) {
 func TestRegisterUser_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := config.NewConfig("../.env")
+	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
 		log.Fatalf("failed to setup config: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 func TestLogin_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := config.NewConfig("../.env")
+	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
 		log.Fatalf("failed to setup config: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestLogin_Integration(t *testing.T) {
 func TestLoginWithOtp_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := config.NewConfig("../.env")
+	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
 		log.Fatalf("failed to setup config: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 func TestRefreshToken_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := config.NewConfig("../.env")
+	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
 		log.Fatalf("failed to setup config: %v", err)
 	}

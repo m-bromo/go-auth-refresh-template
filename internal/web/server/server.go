@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 )
 
 type Middleware func(http.Handler) http.Handler
 
 type Server struct {
-	cfg *config.Config
+	cfg *configs.Config
 	mux *http.ServeMux
 }
 
-func New(cfg *config.Config) *Server {
+func New(cfg *configs.Config) *Server {
 	return &Server{
 		cfg: cfg,
 		mux: http.NewServeMux(),

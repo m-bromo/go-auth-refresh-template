@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/infra/cache"
 	"github.com/m-bromo/go-auth-template/internal/infra/database"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
@@ -25,7 +25,7 @@ type App struct {
 	Redis  *redis.Client
 }
 
-func New(cfg *config.Config) (*App, error) {
+func New(cfg *configs.Config) (*App, error) {
 	db, err := database.NewPostgresConnection(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("starting postgres database: %w", err)
@@ -54,7 +54,7 @@ func (a *App) Close() {
 	a.Redis.Close()
 }
 
-func setupDependencies(cfg *config.Config, db *sql.DB, redisClient *redis.Client) routes.Dependencies {
+func setupDependencies(cfg *configs.Config, db *sql.DB, redisClient *redis.Client) routes.Dependencies {
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(cfg)
 

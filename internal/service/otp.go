@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/m-bromo/go-auth-template/config"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/email"
 	"github.com/m-bromo/go-auth-template/internal/pkg/secure"
@@ -32,7 +32,7 @@ type otpService struct {
 	userRepository       repository.UserRepository
 	resetTokenRepository repository.ResetTokenRepository
 	emailSender          email.EmailSender
-	cfg                  *config.Config
+	cfg                  *configs.Config
 }
 
 func NewOtpService(
@@ -40,7 +40,7 @@ func NewOtpService(
 	userRepository repository.UserRepository,
 	resetTokenRepository repository.ResetTokenRepository,
 	emailSender email.EmailSender,
-	cfg *config.Config,
+	cfg *configs.Config,
 ) OtpService {
 	return &otpService{
 		otpRepository:        otpRepository,
