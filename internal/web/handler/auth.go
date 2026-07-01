@@ -6,6 +6,7 @@ import (
 
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/service"
+	clienterrors "github.com/m-bromo/go-auth-template/internal/web/client_errors"
 	"github.com/m-bromo/go-auth-template/internal/web/cookie"
 	"github.com/m-bromo/go-auth-template/internal/web/models"
 	"github.com/m-bromo/go-auth-template/pkg/validation"
@@ -35,7 +36,7 @@ func NewAuthHandler(
 func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var payload models.RegisterUserPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
@@ -59,7 +60,7 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var payload models.LoginPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
@@ -88,7 +89,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 	var payload models.SendOTPPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
@@ -108,7 +109,7 @@ func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
 	var payload models.VerifyOTPPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
@@ -171,7 +172,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) VerifyPasswordResetCode(w http.ResponseWriter, r *http.Request) {
 	var payload models.VerifyOTPPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
@@ -196,7 +197,7 @@ func (h *AuthHandler) VerifyPasswordResetCode(w http.ResponseWriter, r *http.Req
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var payload models.ResetPasswordPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		HandleError(w, err)
+		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
 	}
 
