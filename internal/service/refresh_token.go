@@ -12,15 +12,15 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/repository"
 )
 
+type RefreshTokenRepository interface {
+	Save(ctx context.Context, token *domain.RefreshToken) error
+	Delete(ctx context.Context, tokenID uuid.UUID) error
+}
+
 type RefreshTokenService interface {
 	GenerateRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error)
 	Refresh(ctx context.Context, tokenIDString string) (string, string, error)
 	Revoke(ctx context.Context, tokenIDString string) error
-}
-
-type RefreshTokenRepository interface {
-	Save(ctx context.Context, token *domain.RefreshToken) error
-	Delete(ctx context.Context, tokenID uuid.UUID) error
 }
 
 type refreshTokenService struct {
