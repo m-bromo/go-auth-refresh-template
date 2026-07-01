@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
-	"github.com/m-bromo/go-auth-template/internal/infra/email"
 	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
@@ -33,6 +32,10 @@ type ResetTokenSaver interface {
 	Save(ctx context.Context, token *domain.ResetToken) error
 }
 
+type EmailSender interface {
+	SendCode(ctx context.Context, email string, code string) error
+}
+
 type OtpService interface {
 	SendCode(ctx context.Context, email string) error
 	VerifyLoginCode(ctx context.Context, code string, email string) error
@@ -43,7 +46,7 @@ type otpService struct {
 	otpStore          OTPRepository
 	userFinder        OTPUserFinder
 	resetTokenSaver   ResetTokenSaver
-	emailSender       email.EmailSender
+	emailSender       EmailSender
 	otpOptions        *configs.OTP
 	resetTokenOptions *configs.ResetToken
 }
@@ -52,7 +55,7 @@ func NewOtpService(
 	otpStore OTPRepository,
 	userFinder OTPUserFinder,
 	resetTokenSaver ResetTokenSaver,
-	emailSender email.EmailSender,
+	emailSender EmailSender,
 	otpOptions *configs.OTP,
 	resetTokenOptions *configs.ResetToken,
 ) OtpService {

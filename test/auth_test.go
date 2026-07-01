@@ -121,7 +121,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
-	emailSender := email.NewEmailSender(&cfg.Resend)
+	emailSender := email.NewResendClient(&cfg.Resend)
 	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
 	userRepository := repository.NewSqlcUserRepository(querier)
 	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
@@ -216,7 +216,7 @@ func TestLogin_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
-	emailSender := email.NewEmailSender(&cfg.Resend)
+	emailSender := email.NewResendClient(&cfg.Resend)
 	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
 	userRepository := repository.NewSqlcUserRepository(querier)
 	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
@@ -311,7 +311,7 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
-	emailSender := email.NewEmailSender(&cfg.Resend)
+	emailSender := email.NewResendClient(&cfg.Resend)
 	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
 	userRepository := repository.NewSqlcUserRepository(querier)
 	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
@@ -425,7 +425,7 @@ func TestRefreshToken_Integration(t *testing.T) {
 	}
 
 	querier := sqlc.New(db)
-	emailSender := email.NewEmailSender(&cfg.Resend)
+	emailSender := email.NewResendClient(&cfg.Resend)
 	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
 	userRepository := repository.NewSqlcUserRepository(querier)
 	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)

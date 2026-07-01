@@ -10,11 +10,7 @@ import (
 	"github.com/resend/resend-go/v3"
 )
 
-type EmailSender interface {
-	SendCode(ctx context.Context, email string, code string) error
-}
-
-type emailSender struct {
+type ResendClient struct {
 	client        *resend.Client
 	resendOptions *configs.Resend
 }
@@ -24,16 +20,16 @@ var templateFS embed.FS
 
 const otpTemplatePath = "templates/send-otp-code.html"
 
-func NewEmailSender(resendOptions *configs.Resend) EmailSender {
+func NewResendClient(resendOptions *configs.Resend) *ResendClient {
 	client := resend.NewClient(resendOptions.ApiKey)
 
-	return &emailSender{
+	return &ResendClient{
 		client:        client,
 		resendOptions: resendOptions,
 	}
 }
 
-func (s *emailSender) SendCode(ctx context.Context, email string, code string) error {
+func (s *ResendClient) SendCode(ctx context.Context, email string, code string) error {
 	tpml, err := template.ParseFS(templateFS, otpTemplatePath)
 	if err != nil {
 		return err
