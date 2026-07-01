@@ -24,7 +24,6 @@ type UserRepository interface {
 
 type userRepository struct {
 	querier sqlc.Querier
-	tx      *sql.Tx
 }
 
 func NewUserRepository(querier sqlc.Querier) UserRepository {
