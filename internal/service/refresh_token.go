@@ -18,7 +18,7 @@ type RefreshTokenService interface {
 	Revoke(ctx context.Context, tokenIDString string) error
 }
 
-type RefreshTokenStore interface {
+type RefreshTokenRepository interface {
 	Save(ctx context.Context, token *domain.RefreshToken) error
 	Delete(ctx context.Context, tokenID uuid.UUID) error
 }
@@ -26,7 +26,7 @@ type RefreshTokenStore interface {
 type refreshTokenService struct {
 	refreshTokenOptions *configs.RefreshToken
 	unitOfWork          repository.UnitOfWork
-	refreshTokenStore   RefreshTokenStore
+	refreshTokenStore   RefreshTokenRepository
 	jwtService          JwtService
 }
 
@@ -38,7 +38,7 @@ var (
 func NewRefreshTokenService(
 	refreshTokenOptions *configs.RefreshToken,
 	unitOfWork repository.UnitOfWork,
-	refreshTokenStore RefreshTokenStore,
+	refreshTokenStore RefreshTokenRepository,
 	jwtService JwtService,
 ) RefreshTokenService {
 	return &refreshTokenService{
