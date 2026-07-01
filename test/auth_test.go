@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -30,15 +31,62 @@ import (
 	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
-var db *sql.DB
-var redisClient *redis.Client
+const (
+	startupTimeout = 2 * time.Minute
+	cleanupTimeout = 30 * time.Second
+)
+
+var testEnv *integrationEnvironment
+
+type integrationEnvironment struct {
+	config            *configs.Config
+	db                *sql.DB
+	redisClient       *redis.Client
+	postgresContainer *postgres.PostgresContainer
+	redisContainer    *tcredis.RedisContainer
+}
+
+type authFixture struct {
+	config                 *configs.Config
+	userRepository         *repository.SqlcUserRepository
+	otpRepository          *repository.RedisOtpRepository
+	refreshTokenRepository *repository.SqlcRefreshTokenRepository
+	authService            service.AuthService
+	refreshTokenService    service.RefreshTokenService
+	jwtService             service.JwtService
+}
 
 func TestMain(m *testing.M) {
-	ctx := context.Background()
+	env, err := setupIntegrationEnvironment()
+	if err != nil {
+		log.Printf("failed to set up integration environment: %v", err)
+		os.Exit(1)
+	}
+	testEnv = env
+
+	code := m.Run()
+
+	if err := env.Close(); err != nil {
+		log.Printf("failed to clean up integration environment: %v", err)
+		if code == 0 {
+			code = 1
+		}
+	}
+
+	os.Exit(code)
+}
+
+func setupIntegrationEnvironment() (*integrationEnvironment, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
 
 	cfg, err := configs.NewConfig("../.env")
 	if err != nil {
-		log.Fatalf("failed to setup config: %v", err)
+		return nil, fmt.Errorf("loading test configuration: %w", err)
+	}
+
+	env := &integrationEnvironment{
+		config: cfg,
 	}
 
 	pgContainer, err := postgres.Run(ctx,
@@ -46,86 +94,136 @@ func TestMain(m *testing.M) {
 		postgres.WithDatabase(cfg.Postgres.Name),
 		postgres.WithUsername(cfg.Postgres.User),
 		postgres.WithPassword(cfg.Postgres.Password),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(10*time.Second),
-		),
+		postgres.BasicWaitStrategies(),
 		testcontainers.WithLogger(log.New(io.Discard, "", 0)),
 	)
+	env.postgresContainer = pgContainer
 	if err != nil {
-		log.Fatalf("failed to run container: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("starting postgres container: %w", err),
+			env.Close(),
+		)
 	}
 
 	redisContainer, err := tcredis.Run(ctx,
-		"redis:latest",
+		"redis:7-alpine",
 		tcredis.WithSnapshotting(10, 1),
 		tcredis.WithLogLevel(tcredis.LogLevelDebug),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("6379/tcp").WithStartupTimeout(time.Minute),
+			wait.ForLog("* Ready to accept connections").WithStartupTimeout(time.Minute),
+		),
+		testcontainers.WithLogger(log.New(io.Discard, "", 0)),
 	)
+	env.redisContainer = redisContainer
 	if err != nil {
-		log.Fatalf("failed to run redis container: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("starting redis container: %w", err),
+			env.Close(),
+		)
 	}
-
-	defer func() {
-		if err := pgContainer.Terminate(ctx); err != nil {
-			log.Fatalf("failed to terminate postgres container: %v", err)
-		}
-
-		if err := redisContainer.Terminate(ctx); err != nil {
-			log.Fatalf("failed to terminate redis container: %v", err)
-		}
-	}()
 
 	rdDsn, err := redisContainer.ConnectionString(ctx)
 	if err != nil {
-		log.Fatalf("failed to get redis connection string: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("getting redis connection string: %w", err),
+			env.Close(),
+		)
 	}
 
 	redisOpts, err := redis.ParseURL(rdDsn)
 	if err != nil {
-		log.Fatalf("failed to parse redis connection string: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("parsing redis connection string: %w", err),
+			env.Close(),
+		)
 	}
 
 	redisOpts.Protocol = 2
-	redisClient = redis.NewClient(redisOpts)
-	defer redisClient.Close()
+	env.redisClient = redis.NewClient(redisOpts)
+	if err := env.redisClient.Ping(ctx).Err(); err != nil {
+		return nil, errors.Join(
+			fmt.Errorf("pinging redis: %w", err),
+			env.Close(),
+		)
+	}
 
 	pgDsn, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		log.Fatalf("failed to get postgres connection string: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("getting postgres connection string: %w", err),
+			env.Close(),
+		)
 	}
 
-	db, err = sql.Open("postgres", pgDsn)
+	env.db, err = sql.Open("postgres", pgDsn)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("opening postgres connection: %w", err),
+			env.Close(),
+		)
 	}
-	defer db.Close()
+	if err := env.db.PingContext(ctx); err != nil {
+		return nil, errors.Join(
+			fmt.Errorf("pinging postgres: %w", err),
+			env.Close(),
+		)
+	}
 
 	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatalf("failed to set goose dialect: %v", err)
+		return nil, errors.Join(
+			fmt.Errorf("setting goose dialect: %w", err),
+			env.Close(),
+		)
 	}
 
-	if err := goose.Up(db, "../internal/infra/database/schema"); err != nil {
-		log.Fatalf("failed to migrate: %v", err)
+	if err := goose.Up(env.db, "../internal/infra/database/schema"); err != nil {
+		return nil, errors.Join(
+			fmt.Errorf("running database migrations: %w", err),
+			env.Close(),
+		)
 	}
 
-	os.Exit(m.Run())
+	return env, nil
 }
 
-func TestRegisterUser_Integration(t *testing.T) {
-	ctx := context.Background()
+func (e *integrationEnvironment) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
+	defer cancel()
 
-	cfg, err := configs.NewConfig("../.env")
-	if err != nil {
-		log.Fatalf("failed to setup config: %v", err)
+	var errs []error
+	if e.db != nil {
+		if err := e.db.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("closing postgres connection: %w", err))
+		}
+	}
+	if e.redisClient != nil {
+		if err := e.redisClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("closing redis client: %w", err))
+		}
+	}
+	if e.redisContainer != nil {
+		if err := e.redisContainer.Terminate(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("terminating redis container: %w", err))
+		}
+	}
+	if e.postgresContainer != nil {
+		if err := e.postgresContainer.Terminate(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("terminating postgres container: %w", err))
+		}
 	}
 
-	querier := sqlc.New(db)
+	return errors.Join(errs...)
+}
+
+func newAuthFixture() *authFixture {
+	cfg := testEnv.config
+	querier := sqlc.New(testEnv.db)
 	emailSender := email.NewResendClient(&cfg.Resend)
-	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
+	otpRepository := repository.NewRedisOtpRepository(testEnv.redisClient, &cfg.OTP)
 	userRepository := repository.NewSqlcUserRepository(querier)
 	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
-	unitOfWork := repository.NewUnitOfWork(db, querier)
+	unitOfWork := repository.NewUnitOfWork(testEnv.db, querier)
 	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
 	jwtService := service.NewJwtService(&cfg.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
@@ -150,6 +248,24 @@ func TestRegisterUser_Integration(t *testing.T) {
 		refreshTokenService,
 		otpService,
 	)
+
+	return &authFixture{
+		config:                 cfg,
+		userRepository:         userRepository,
+		otpRepository:          otpRepository,
+		refreshTokenRepository: refreshTokenRepository,
+		authService:            authService,
+		refreshTokenService:    refreshTokenService,
+		jwtService:             jwtService,
+	}
+}
+
+func TestRegisterUser_Integration(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newAuthFixture()
+	authService := fixture.authService
+	userRepository := fixture.userRepository
 
 	t.Run("should register a user successfully", func(t *testing.T) {
 		user := &domain.User{
@@ -210,41 +326,8 @@ func TestRegisterUser_Integration(t *testing.T) {
 func TestLogin_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := configs.NewConfig("../.env")
-	if err != nil {
-		log.Fatalf("failed to setup config: %v", err)
-	}
-
-	querier := sqlc.New(db)
-	emailSender := email.NewResendClient(&cfg.Resend)
-	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewSqlcUserRepository(querier)
-	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
-	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
-	jwtService := service.NewJwtService(&cfg.Jwt)
-	refreshTokenService := service.NewRefreshTokenService(
-		&cfg.RefreshToken,
-		unitOfWork,
-		refreshTokenRepository,
-		jwtService,
-	)
-	otpService := service.NewOtpService(
-		otpRepository,
-		userRepository,
-		resetTokenRepository,
-		emailSender,
-		&cfg.OTP,
-		&cfg.ResetToken,
-	)
-	authService := service.NewAuthService(
-		&cfg.ResetToken,
-		unitOfWork,
-		userRepository,
-		jwtService,
-		refreshTokenService,
-		otpService,
-	)
+	fixture := newAuthFixture()
+	authService := fixture.authService
 
 	user := &domain.User{
 		Email:    "login@test.com",
@@ -305,41 +388,11 @@ func TestLogin_Integration(t *testing.T) {
 func TestLoginWithOtp_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := configs.NewConfig("../.env")
-	if err != nil {
-		log.Fatalf("failed to setup config: %v", err)
-	}
-
-	querier := sqlc.New(db)
-	emailSender := email.NewResendClient(&cfg.Resend)
-	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewSqlcUserRepository(querier)
-	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
-	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
-	jwtService := service.NewJwtService(&cfg.Jwt)
-	refreshTokenService := service.NewRefreshTokenService(
-		&cfg.RefreshToken,
-		unitOfWork,
-		refreshTokenRepository,
-		jwtService,
-	)
-	otpService := service.NewOtpService(
-		otpRepository,
-		userRepository,
-		resetTokenRepository,
-		emailSender,
-		&cfg.OTP,
-		&cfg.ResetToken,
-	)
-	authService := service.NewAuthService(
-		&cfg.ResetToken,
-		unitOfWork,
-		userRepository,
-		jwtService,
-		refreshTokenService,
-		otpService,
-	)
+	fixture := newAuthFixture()
+	cfg := fixture.config
+	authService := fixture.authService
+	otpRepository := fixture.otpRepository
+	refreshTokenRepository := fixture.refreshTokenRepository
 
 	user := &domain.User{
 		Email:    "otp-login@test.com",
@@ -384,7 +437,7 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 		t.Fatalf("expected refresh token to be stored in postgres")
 	}
 
-	savedCode, err := redisClient.Get(ctx, user.Email).Result()
+	savedCode, err := testEnv.redisClient.Get(ctx, user.Email).Result()
 	if err == redis.Nil {
 		savedCode = ""
 		err = nil
@@ -419,41 +472,11 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 func TestRefreshToken_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	cfg, err := configs.NewConfig("../.env")
-	if err != nil {
-		log.Fatalf("failed to setup config: %v", err)
-	}
-
-	querier := sqlc.New(db)
-	emailSender := email.NewResendClient(&cfg.Resend)
-	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewSqlcUserRepository(querier)
-	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
-	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
-	jwtService := service.NewJwtService(&cfg.Jwt)
-	refreshTokenService := service.NewRefreshTokenService(
-		&cfg.RefreshToken,
-		unitOfWork,
-		refreshTokenRepository,
-		jwtService,
-	)
-	otpService := service.NewOtpService(
-		otpRepository,
-		userRepository,
-		resetTokenRepository,
-		emailSender,
-		&cfg.OTP,
-		&cfg.ResetToken,
-	)
-	authService := service.NewAuthService(
-		&cfg.ResetToken,
-		unitOfWork,
-		userRepository,
-		jwtService,
-		refreshTokenService,
-		otpService,
-	)
+	fixture := newAuthFixture()
+	authService := fixture.authService
+	refreshTokenRepository := fixture.refreshTokenRepository
+	refreshTokenService := fixture.refreshTokenService
+	jwtService := fixture.jwtService
 
 	password := "password@123"
 	user := &domain.User{
