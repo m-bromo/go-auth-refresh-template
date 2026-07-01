@@ -19,7 +19,7 @@ var (
 	ErrInvalidResetToken     = errors.New("invalid reset token")
 )
 
-type AuthUserStore interface {
+type AuthUserRepository interface {
 	Save(ctx context.Context, user *domain.User) error
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 }
@@ -34,7 +34,7 @@ type AuthService interface {
 type authService struct {
 	resetTokenOptions   *configs.ResetToken
 	unitOfWork          repository.UnitOfWork
-	userStore           AuthUserStore
+	userStore           AuthUserRepository
 	jwtService          JwtService
 	refreshTokenService RefreshTokenService
 	otpService          OtpService
@@ -43,7 +43,7 @@ type authService struct {
 func NewAuthService(
 	resetTokenOptions *configs.ResetToken,
 	unitOfWork repository.UnitOfWork,
-	userStore AuthUserStore,
+	userStore AuthUserRepository,
 	jwtService JwtService,
 	refreshTokenService RefreshTokenService,
 	otpService OtpService,
