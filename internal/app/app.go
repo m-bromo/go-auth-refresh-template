@@ -60,7 +60,7 @@ func setupDependencies(
 	redisClient *redis.Client,
 ) routes.Dependencies {
 	queries := sqlc.New(db)
-	emailSender := email.NewResendClient(&configOptions.Resend)
+	resendClient := email.NewResendClient(&configOptions.Resend)
 
 	sqlcUserRepository := repository.NewSqlcUserRepository(queries)
 	sqlcResetTokenRepository := repository.NewSqlcResetTokenRepository(queries)
@@ -80,7 +80,7 @@ func setupDependencies(
 		redisOtpRepository,
 		sqlcUserRepository,
 		sqlcResetTokenRepository,
-		emailSender,
+		resendClient,
 		&configOptions.OTP,
 		&configOptions.ResetToken,
 	)
