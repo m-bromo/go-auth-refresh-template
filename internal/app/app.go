@@ -59,27 +59,27 @@ func setupDependencies(
 	db *sql.DB,
 	redisClient *redis.Client,
 ) routes.Dependencies {
-	querier := sqlc.New(db)
+	queries := sqlc.New(db)
 	emailSender := email.NewEmailSender(&configOptions.Resend)
 
-	userRepository := repository.NewUserRepository(querier)
-	resetTokenRepository := repository.NewResetTokenRepository(querier)
-	otpRepository := repository.NewOtpRepository(redisClient, &configOptions.OTP)
-	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
+	sqlcUserRepository := repository.NewSqlcUserRepository(queries)
+	sqlcResetTokenRepository := repository.NewSqlcResetTokenRepository(queries)
+	redisOtpRepository := repository.NewRedisOtpRepository(redisClient, &configOptions.OTP)
+	sqlcRefreshTokenRepository := repository.NewSqlcRefreshTokenRepository(queries)
+	unitOfWork := repository.NewUnitOfWork(db, queries)
 
-	userService := service.NewUserService(userRepository)
+	userService := service.NewUserService(sqlcUserRepository)
 	jwtService := service.NewJwtService(&configOptions.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
 		&configOptions.RefreshToken,
 		unitOfWork,
-		refreshTokenRepository,
+		sqlcRefreshTokenRepository,
 		jwtService,
 	)
 	otpService := service.NewOtpService(
-		otpRepository,
-		userRepository,
-		resetTokenRepository,
+		redisOtpRepository,
+		sqlcUserRepository,
+		sqlcResetTokenRepository,
 		emailSender,
 		&configOptions.OTP,
 		&configOptions.ResetToken,
@@ -87,8 +87,7 @@ func setupDependencies(
 	authService := service.NewAuthService(
 		&configOptions.ResetToken,
 		unitOfWork,
-		userRepository,
-		resetTokenRepository,
+		sqlcUserRepository,
 		jwtService,
 		refreshTokenService,
 		otpService,

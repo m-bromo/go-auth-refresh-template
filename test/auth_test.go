@@ -122,11 +122,11 @@ func TestRegisterUser_Integration(t *testing.T) {
 
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(&cfg.Resend)
-	otpRepository := repository.NewOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewUserRepository(querier)
-	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
+	userRepository := repository.NewSqlcUserRepository(querier)
+	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
 	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
+	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
 	jwtService := service.NewJwtService(&cfg.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
 		&cfg.RefreshToken,
@@ -146,7 +146,6 @@ func TestRegisterUser_Integration(t *testing.T) {
 		&cfg.ResetToken,
 		unitOfWork,
 		userRepository,
-		resetTokenRepository,
 		jwtService,
 		refreshTokenService,
 		otpService,
@@ -218,11 +217,11 @@ func TestLogin_Integration(t *testing.T) {
 
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(&cfg.Resend)
-	otpRepository := repository.NewOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewUserRepository(querier)
-	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
+	userRepository := repository.NewSqlcUserRepository(querier)
+	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
 	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
+	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
 	jwtService := service.NewJwtService(&cfg.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
 		&cfg.RefreshToken,
@@ -242,7 +241,6 @@ func TestLogin_Integration(t *testing.T) {
 		&cfg.ResetToken,
 		unitOfWork,
 		userRepository,
-		resetTokenRepository,
 		jwtService,
 		refreshTokenService,
 		otpService,
@@ -314,11 +312,11 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(&cfg.Resend)
-	otpRepository := repository.NewOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewUserRepository(querier)
-	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
+	userRepository := repository.NewSqlcUserRepository(querier)
+	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
 	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
+	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
 	jwtService := service.NewJwtService(&cfg.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
 		&cfg.RefreshToken,
@@ -338,7 +336,6 @@ func TestLoginWithOtp_Integration(t *testing.T) {
 		&cfg.ResetToken,
 		unitOfWork,
 		userRepository,
-		resetTokenRepository,
 		jwtService,
 		refreshTokenService,
 		otpService,
@@ -429,11 +426,11 @@ func TestRefreshToken_Integration(t *testing.T) {
 
 	querier := sqlc.New(db)
 	emailSender := email.NewEmailSender(&cfg.Resend)
-	otpRepository := repository.NewOtpRepository(redisClient, &cfg.OTP)
-	userRepository := repository.NewUserRepository(querier)
-	resetTokenRepository := repository.NewResetTokenRepository(querier)
+	otpRepository := repository.NewRedisOtpRepository(redisClient, &cfg.OTP)
+	userRepository := repository.NewSqlcUserRepository(querier)
+	resetTokenRepository := repository.NewSqlcResetTokenRepository(querier)
 	unitOfWork := repository.NewUnitOfWork(db, querier)
-	refreshTokenRepository := repository.NewRefreshTokenRepository(querier)
+	refreshTokenRepository := repository.NewSqlcRefreshTokenRepository(querier)
 	jwtService := service.NewJwtService(&cfg.Jwt)
 	refreshTokenService := service.NewRefreshTokenService(
 		&cfg.RefreshToken,
@@ -453,7 +450,6 @@ func TestRefreshToken_Integration(t *testing.T) {
 		&cfg.ResetToken,
 		unitOfWork,
 		userRepository,
-		resetTokenRepository,
 		jwtService,
 		refreshTokenService,
 		otpService,

@@ -8,26 +8,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type OtpRepository interface {
-	SaveCode(ctx context.Context, email string, code string) error
-	ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error)
-}
-
-type otpRepository struct {
+type RedisOtpRepository struct {
 	redisClient *redis.Client
 	otpOptions  *configs.OTP
 }
 
 const consumeCodeMaxRetries = 3
 
-func NewOtpRepository(redisClient *redis.Client, otpOptions *configs.OTP) OtpRepository {
-	return &otpRepository{
+func NewRedisOtpRepository(redisClient *redis.Client, otpOptions *configs.OTP) *RedisOtpRepository {
+	return &RedisOtpRepository{
 		redisClient: redisClient,
 		otpOptions:  otpOptions,
 	}
 }
 
-func (r *otpRepository) SaveCode(ctx context.Context, email string, code string) error {
+func (r *RedisOtpRepository) SaveCode(ctx context.Context, email string, code string) error {
 	_, err := r.redisClient.Set(ctx, email, code, r.otpOptions.Duration).Result()
 	if err != nil {
 		return fmt.Errorf("saving otp code to redis: %w", err)
@@ -36,7 +31,7 @@ func (r *otpRepository) SaveCode(ctx context.Context, email string, code string)
 	return nil
 }
 
-func (r *otpRepository) ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error) {
+func (r *RedisOtpRepository) ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error) {
 	var consumed bool
 
 	for range consumeCodeMaxRetries {

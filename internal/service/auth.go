@@ -19,6 +19,11 @@ var (
 	ErrInvalidResetToken     = errors.New("invalid reset token")
 )
 
+type AuthUserStore interface {
+	Save(ctx context.Context, user *domain.User) error
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+}
+
 type AuthService interface {
 	RegisterUser(ctx context.Context, user *domain.User) error
 	Login(ctx context.Context, user *domain.User) (string, string, error)
@@ -27,32 +32,29 @@ type AuthService interface {
 }
 
 type authService struct {
-	resetTokenOptions    *configs.ResetToken
-	unitOfWork           repository.UnitOfWork
-	userRepository       repository.UserRepository
-	resetTokenRepository repository.ResetTokenRepository
-	jwtService           JwtService
-	refreshTokenService  RefreshTokenService
-	otpService           OtpService
+	resetTokenOptions   *configs.ResetToken
+	unitOfWork          repository.UnitOfWork
+	userStore           AuthUserStore
+	jwtService          JwtService
+	refreshTokenService RefreshTokenService
+	otpService          OtpService
 }
 
 func NewAuthService(
 	resetTokenOptions *configs.ResetToken,
 	unitOfWork repository.UnitOfWork,
-	userRepository repository.UserRepository,
-	resetTokenRepository repository.ResetTokenRepository,
+	userStore AuthUserStore,
 	jwtService JwtService,
 	refreshTokenService RefreshTokenService,
 	otpService OtpService,
 ) AuthService {
 	return &authService{
-		resetTokenOptions:    resetTokenOptions,
-		unitOfWork:           unitOfWork,
-		userRepository:       userRepository,
-		resetTokenRepository: resetTokenRepository,
-		jwtService:           jwtService,
-		refreshTokenService:  refreshTokenService,
-		otpService:           otpService,
+		resetTokenOptions:   resetTokenOptions,
+		unitOfWork:          unitOfWork,
+		userStore:           userStore,
+		jwtService:          jwtService,
+		refreshTokenService: refreshTokenService,
+		otpService:          otpService,
 	}
 }
 
@@ -65,7 +67,7 @@ func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error
 	}
 	user.Password = hashedPassword
 
-	if err := s.userRepository.Save(ctx, user); err != nil {
+	if err := s.userStore.Save(ctx, user); err != nil {
 		if errors.Is(err, repository.ErrEmailAlreadyRegistered) {
 			return domain.NewConflictError("user email is already registered", ErrUserAlreadyRegistered)
 		}
@@ -77,7 +79,7 @@ func (s *authService) RegisterUser(ctx context.Context, user *domain.User) error
 }
 
 func (s *authService) Login(ctx context.Context, user *domain.User) (string, string, error) {
-	existingUser, err := s.userRepository.GetByEmail(ctx, user.Email)
+	existingUser, err := s.userStore.GetByEmail(ctx, user.Email)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching user by email: %w", err)
 	}
@@ -104,7 +106,7 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (string, str
 }
 
 func (s *authService) LoginWithOtp(ctx context.Context, email string, code string) (string, string, error) {
-	existingUser, err := s.userRepository.GetByEmail(ctx, email)
+	existingUser, err := s.userStore.GetByEmail(ctx, email)
 	if err != nil {
 		return "", "", fmt.Errorf("fetching user by email: %w", err)
 	}

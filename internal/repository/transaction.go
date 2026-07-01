@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
@@ -12,10 +14,24 @@ type UnitOfWork interface {
 	Exec(ctx context.Context, fn func(repos Repositories) error) error
 }
 
+type UserTransactionRepository interface {
+	UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error
+}
+
+type ResetTokenTransactionRepository interface {
+	Consume(ctx context.Context, tokenHash string) (*domain.ResetToken, error)
+}
+
+type RefreshTokenTransactionRepository interface {
+	Save(ctx context.Context, token *domain.RefreshToken) error
+	Consume(ctx context.Context, tokenID uuid.UUID) (string, error)
+	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
+}
+
 type Repositories struct {
-	UserRepository         UserRepository
-	ResetTokenRepository   ResetTokenRepository
-	RefreshTokenRepository RefreshTokenRepository
+	UserRepository         UserTransactionRepository
+	ResetTokenRepository   ResetTokenTransactionRepository
+	RefreshTokenRepository RefreshTokenTransactionRepository
 }
 
 type unitOfWork struct {
@@ -43,9 +59,9 @@ func (u *unitOfWork) Exec(ctx context.Context, fn func(repos Repositories) error
 	qtx := u.queries.WithTx(tx)
 
 	repos := Repositories{
-		RefreshTokenRepository: NewRefreshTokenRepository(qtx),
-		UserRepository:         NewUserRepository(qtx),
-		ResetTokenRepository:   NewResetTokenRepository(qtx),
+		RefreshTokenRepository: NewSqlcRefreshTokenRepository(qtx),
+		UserRepository:         NewSqlcUserRepository(qtx),
+		ResetTokenRepository:   NewSqlcResetTokenRepository(qtx),
 	}
 
 	if err := fn(repos); err != nil {

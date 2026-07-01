@@ -10,25 +10,17 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
-type RefreshTokenRepository interface {
-	Save(ctx context.Context, token *domain.RefreshToken) error
-	Get(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error)
-	Consume(ctx context.Context, tokenID uuid.UUID) (string, error)
-	Delete(ctx context.Context, tokenID uuid.UUID) error
-	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
-}
-
-type refreshTokenRepository struct {
+type SqlcRefreshTokenRepository struct {
 	querier sqlc.Querier
 }
 
-func NewRefreshTokenRepository(querier sqlc.Querier) RefreshTokenRepository {
-	return &refreshTokenRepository{
+func NewSqlcRefreshTokenRepository(querier sqlc.Querier) *SqlcRefreshTokenRepository {
+	return &SqlcRefreshTokenRepository{
 		querier: querier,
 	}
 }
 
-func (r *refreshTokenRepository) Save(ctx context.Context, token *domain.RefreshToken) error {
+func (r *SqlcRefreshTokenRepository) Save(ctx context.Context, token *domain.RefreshToken) error {
 	if err := r.querier.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
 		ID:        token.ID,
 		UserID:    token.UserID,
@@ -41,7 +33,7 @@ func (r *refreshTokenRepository) Save(ctx context.Context, token *domain.Refresh
 	return nil
 }
 
-func (r *refreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error) {
+func (r *SqlcRefreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (*domain.RefreshToken, error) {
 	token, err := r.querier.GetRefreshTokenByID(ctx, tokenID)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -59,7 +51,7 @@ func (r *refreshTokenRepository) Get(ctx context.Context, tokenID uuid.UUID) (*d
 	}, nil
 }
 
-func (r *refreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID) (string, error) {
+func (r *SqlcRefreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID) (string, error) {
 	token, err := r.querier.ConsumeRefreshToken(ctx, tokenID)
 	if err == sql.ErrNoRows {
 		return "", nil
@@ -72,7 +64,7 @@ func (r *refreshTokenRepository) Consume(ctx context.Context, tokenID uuid.UUID)
 	return token.UserID.String(), nil
 }
 
-func (r *refreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) error {
+func (r *SqlcRefreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) error {
 	if err := r.querier.DeleteRefreshToken(ctx, tokenID); err != nil {
 		return fmt.Errorf("delete refresh token: %w", err)
 	}
@@ -80,7 +72,7 @@ func (r *refreshTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) 
 	return nil
 }
 
-func (r *refreshTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
+func (r *SqlcRefreshTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	if err := r.querier.DeleteRefreshTokensByUserID(ctx, userID); err != nil {
 		return fmt.Errorf("delete refresh token: %w", err)
 	}

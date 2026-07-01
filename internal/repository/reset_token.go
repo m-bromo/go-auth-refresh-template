@@ -10,23 +10,17 @@ import (
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
-type ResetTokenRepository interface {
-	Save(ctx context.Context, token *domain.ResetToken) error
-	Consume(ctx context.Context, tokenHash string) (*domain.ResetToken, error)
-	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
-}
-
-type resetTokenRepository struct {
+type SqlcResetTokenRepository struct {
 	querier sqlc.Querier
 }
 
-func NewResetTokenRepository(querier sqlc.Querier) ResetTokenRepository {
-	return &resetTokenRepository{
+func NewSqlcResetTokenRepository(querier sqlc.Querier) *SqlcResetTokenRepository {
+	return &SqlcResetTokenRepository{
 		querier: querier,
 	}
 }
 
-func (r *resetTokenRepository) Save(ctx context.Context, token *domain.ResetToken) error {
+func (r *SqlcResetTokenRepository) Save(ctx context.Context, token *domain.ResetToken) error {
 	return r.querier.SavePasswordResetToken(ctx, sqlc.SavePasswordResetTokenParams{
 		ID:        token.ID,
 		UserID:    token.UserID,
@@ -35,7 +29,7 @@ func (r *resetTokenRepository) Save(ctx context.Context, token *domain.ResetToke
 	})
 }
 
-func (r *resetTokenRepository) Consume(ctx context.Context, tokenHash string) (*domain.ResetToken, error) {
+func (r *SqlcResetTokenRepository) Consume(ctx context.Context, tokenHash string) (*domain.ResetToken, error) {
 	token, err := r.querier.ConsumePasswordResetToken(ctx, tokenHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -55,7 +49,7 @@ func (r *resetTokenRepository) Consume(ctx context.Context, tokenHash string) (*
 	}, nil
 }
 
-func (r *resetTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
+func (r *SqlcResetTokenRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	if err := r.querier.DeletePasswordResetTokensByUserID(ctx, userID); err != nil {
 		return err
 	}

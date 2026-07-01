@@ -18,11 +18,16 @@ type RefreshTokenService interface {
 	Revoke(ctx context.Context, tokenIDString string) error
 }
 
+type RefreshTokenStore interface {
+	Save(ctx context.Context, token *domain.RefreshToken) error
+	Delete(ctx context.Context, tokenID uuid.UUID) error
+}
+
 type refreshTokenService struct {
-	refreshTokenOptions    *configs.RefreshToken
-	unitOfWork             repository.UnitOfWork
-	refreshTokenRepository repository.RefreshTokenRepository
-	jwtService             JwtService
+	refreshTokenOptions *configs.RefreshToken
+	unitOfWork          repository.UnitOfWork
+	refreshTokenStore   RefreshTokenStore
+	jwtService          JwtService
 }
 
 var (
@@ -33,14 +38,14 @@ var (
 func NewRefreshTokenService(
 	refreshTokenOptions *configs.RefreshToken,
 	unitOfWork repository.UnitOfWork,
-	refreshTokenRepository repository.RefreshTokenRepository,
+	refreshTokenStore RefreshTokenStore,
 	jwtService JwtService,
 ) RefreshTokenService {
 	return &refreshTokenService{
-		refreshTokenOptions:    refreshTokenOptions,
-		unitOfWork:             unitOfWork,
-		refreshTokenRepository: refreshTokenRepository,
-		jwtService:             jwtService,
+		refreshTokenOptions: refreshTokenOptions,
+		unitOfWork:          unitOfWork,
+		refreshTokenStore:   refreshTokenStore,
+		jwtService:          jwtService,
 	}
 }
 
@@ -52,7 +57,7 @@ func (s *refreshTokenService) GenerateRefreshToken(ctx context.Context, userID u
 		ExpiresAt: time.Now().Add(s.refreshTokenOptions.Duration),
 	}
 
-	if err := s.refreshTokenRepository.Save(ctx, &refreshToken); err != nil {
+	if err := s.refreshTokenStore.Save(ctx, &refreshToken); err != nil {
 		return nil, fmt.Errorf("saving refresh token to repository: %w", err)
 	}
 
@@ -112,7 +117,7 @@ func (s *refreshTokenService) Revoke(ctx context.Context, tokenIDString string) 
 		return domain.NewUnauthorizedError("invalid refresh token", ErrInvalidRefreshToken)
 	}
 
-	if err := s.refreshTokenRepository.Delete(ctx, tokenID); err != nil {
+	if err := s.refreshTokenStore.Delete(ctx, tokenID); err != nil {
 		return fmt.Errorf("deleting refresh token: %w", err)
 	}
 

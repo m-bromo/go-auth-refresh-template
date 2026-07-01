@@ -15,24 +15,17 @@ var (
 	ErrEmailAlreadyRegistered = errors.New("the user email has already been registered")
 )
 
-type UserRepository interface {
-	Save(ctx context.Context, user *domain.User) error
-	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
-	GetByEmail(ctx context.Context, email string) (*domain.User, error)
-	UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error
-}
-
-type userRepository struct {
+type SqlcUserRepository struct {
 	querier sqlc.Querier
 }
 
-func NewUserRepository(querier sqlc.Querier) UserRepository {
-	return &userRepository{
+func NewSqlcUserRepository(querier sqlc.Querier) *SqlcUserRepository {
+	return &SqlcUserRepository{
 		querier: querier,
 	}
 }
 
-func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
+func (r *SqlcUserRepository) Save(ctx context.Context, user *domain.User) error {
 	var pgErr *pq.Error
 
 	err := r.querier.SaveUser(ctx, sqlc.SaveUserParams{
@@ -52,7 +45,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+func (r *SqlcUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	user, err := r.querier.GetUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -70,7 +63,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Use
 	}, nil
 }
 
-func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *SqlcUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user, err := r.querier.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -88,7 +81,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.
 	}, nil
 }
 
-func (r *userRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error {
+func (r *SqlcUserRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, password string) error {
 	if err := r.querier.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
 		ID:       userID,
 		Password: password,

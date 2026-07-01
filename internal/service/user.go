@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/internal/domain"
-	"github.com/m-bromo/go-auth-template/internal/repository"
 )
 
 var (
@@ -15,17 +14,21 @@ var (
 	ErrUserNotFound  = errors.New("user not found")
 )
 
+type UserByIDFinder interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+}
+
 type UserService interface {
 	GetProfile(ctx context.Context, id string) (*domain.User, error)
 }
 
 type userService struct {
-	userRepository repository.UserRepository
+	userFinder UserByIDFinder
 }
 
-func NewUserService(userRepository repository.UserRepository) UserService {
+func NewUserService(userFinder UserByIDFinder) UserService {
 	return &userService{
-		userRepository: userRepository,
+		userFinder: userFinder,
 	}
 }
 
@@ -35,7 +38,7 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*domain.User, 
 		return nil, domain.NewBadRequestError("invalid user id", ErrInvalidUserID)
 	}
 
-	user, err := s.userRepository.GetByID(ctx, uuid)
+	user, err := s.userFinder.GetByID(ctx, uuid)
 	if err != nil {
 		return nil, fmt.Errorf("fetching user from repository by ID: %w", err)
 	}

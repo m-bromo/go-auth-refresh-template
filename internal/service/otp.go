@@ -12,7 +12,6 @@ import (
 	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/email"
-	"github.com/m-bromo/go-auth-template/internal/repository"
 	"github.com/m-bromo/go-auth-template/pkg/secure"
 )
 
@@ -21,6 +20,19 @@ var (
 	ErrInvalidOtpCode  = errors.New("the otp code does not match")
 )
 
+type OTPRepository interface {
+	SaveCode(ctx context.Context, email string, code string) error
+	ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error)
+}
+
+type OTPUserFinder interface {
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+}
+
+type ResetTokenSaver interface {
+	Save(ctx context.Context, token *domain.ResetToken) error
+}
+
 type OtpService interface {
 	SendCode(ctx context.Context, email string) error
 	VerifyLoginCode(ctx context.Context, code string, email string) error
@@ -28,34 +40,34 @@ type OtpService interface {
 }
 
 type otpService struct {
-	otpRepository        repository.OtpRepository
-	userRepository       repository.UserRepository
-	resetTokenRepository repository.ResetTokenRepository
-	emailSender          email.EmailSender
-	otpOptions           *configs.OTP
-	resetTokenOptions    *configs.ResetToken
+	otpStore          OTPRepository
+	userFinder        OTPUserFinder
+	resetTokenSaver   ResetTokenSaver
+	emailSender       email.EmailSender
+	otpOptions        *configs.OTP
+	resetTokenOptions *configs.ResetToken
 }
 
 func NewOtpService(
-	otpRepository repository.OtpRepository,
-	userRepository repository.UserRepository,
-	resetTokenRepository repository.ResetTokenRepository,
+	otpStore OTPRepository,
+	userFinder OTPUserFinder,
+	resetTokenSaver ResetTokenSaver,
 	emailSender email.EmailSender,
 	otpOptions *configs.OTP,
 	resetTokenOptions *configs.ResetToken,
 ) OtpService {
 	return &otpService{
-		otpRepository:        otpRepository,
-		userRepository:       userRepository,
-		resetTokenRepository: resetTokenRepository,
-		emailSender:          emailSender,
-		otpOptions:           otpOptions,
-		resetTokenOptions:    resetTokenOptions,
+		otpStore:          otpStore,
+		userFinder:        userFinder,
+		resetTokenSaver:   resetTokenSaver,
+		emailSender:       emailSender,
+		otpOptions:        otpOptions,
+		resetTokenOptions: resetTokenOptions,
 	}
 }
 
 func (s *otpService) SendCode(ctx context.Context, email string) error {
-	user, err := s.userRepository.GetByEmail(ctx, email)
+	user, err := s.userFinder.GetByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("fetching user by email: %w", err)
 	}
@@ -73,7 +85,7 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 
 	hashedCode := secure.HashOTP(formatedCode, []byte(s.otpOptions.Secret))
 
-	if err := s.otpRepository.SaveCode(ctx, user.Email, hashedCode); err != nil {
+	if err := s.otpStore.SaveCode(ctx, user.Email, hashedCode); err != nil {
 		return fmt.Errorf("saving hash code: %w", err)
 	}
 
@@ -86,7 +98,7 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 
 func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email string) error {
 	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
-	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
+	consumed, err := s.otpStore.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return fmt.Errorf("consuming otp code: %w", err)
 	}
@@ -100,7 +112,7 @@ func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email str
 
 func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, email string) (string, error) {
 	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
-	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
+	consumed, err := s.otpStore.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return "", fmt.Errorf("consuming otp code: %w", err)
 	}
@@ -109,7 +121,7 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 		return "", domain.NewNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
 	}
 
-	user, err := s.userRepository.GetByEmail(ctx, email)
+	user, err := s.userFinder.GetByEmail(ctx, email)
 	if err != nil {
 		return "", fmt.Errorf("fetching user by email: %w", err)
 	}
@@ -133,7 +145,7 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.resetTokenRepository.Save(ctx, &token); err != nil {
+	if err := s.resetTokenSaver.Save(ctx, &token); err != nil {
 		return "", fmt.Errorf("saving reset token: %w", err)
 	}
 
