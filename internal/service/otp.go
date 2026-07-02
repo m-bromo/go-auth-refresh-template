@@ -43,8 +43,8 @@ type OtpService interface {
 }
 
 type otpService struct {
-	otpStore          OTPRepository
-	userFinder        OTPUserFinder
+	otpRepository     OTPRepository
+	otpUserFinder     OTPUserFinder
 	resetTokenSaver   ResetTokenSaver
 	emailSender       EmailSender
 	otpOptions        *configs.OTP
@@ -52,16 +52,16 @@ type otpService struct {
 }
 
 func NewOtpService(
-	otpStore OTPRepository,
-	userFinder OTPUserFinder,
+	otpRepository OTPRepository,
+	otpUserFinder OTPUserFinder,
 	resetTokenSaver ResetTokenSaver,
 	emailSender EmailSender,
 	otpOptions *configs.OTP,
 	resetTokenOptions *configs.ResetToken,
 ) OtpService {
 	return &otpService{
-		otpStore:          otpStore,
-		userFinder:        userFinder,
+		otpRepository:     otpRepository,
+		otpUserFinder:     otpUserFinder,
 		resetTokenSaver:   resetTokenSaver,
 		emailSender:       emailSender,
 		otpOptions:        otpOptions,
@@ -70,7 +70,7 @@ func NewOtpService(
 }
 
 func (s *otpService) SendCode(ctx context.Context, email string) error {
-	user, err := s.userFinder.GetByEmail(ctx, email)
+	user, err := s.otpUserFinder.GetByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("fetching user by email: %w", err)
 	}
@@ -88,12 +88,12 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 
 	hashedCode := secure.HashOTP(formatedCode, []byte(s.otpOptions.Secret))
 
-	if err := s.otpStore.SaveCode(ctx, user.Email, hashedCode); err != nil {
-		return fmt.Errorf("saving hash code: %w", err)
-	}
-
 	if err := s.emailSender.SendCode(ctx, user.Email, formatedCode); err != nil {
 		return fmt.Errorf("sending coding: %w", err)
+	}
+
+	if err := s.otpRepository.SaveCode(ctx, user.Email, hashedCode); err != nil {
+		return fmt.Errorf("saving hash code: %w", err)
 	}
 
 	return nil
@@ -101,7 +101,7 @@ func (s *otpService) SendCode(ctx context.Context, email string) error {
 
 func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email string) error {
 	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
-	consumed, err := s.otpStore.ConsumeCodeIfMatches(ctx, email, hashedCode)
+	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return fmt.Errorf("consuming otp code: %w", err)
 	}
@@ -115,7 +115,7 @@ func (s *otpService) VerifyLoginCode(ctx context.Context, code string, email str
 
 func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, email string) (string, error) {
 	hashedCode := secure.HashOTP(code, []byte(s.otpOptions.Secret))
-	consumed, err := s.otpStore.ConsumeCodeIfMatches(ctx, email, hashedCode)
+	consumed, err := s.otpRepository.ConsumeCodeIfMatches(ctx, email, hashedCode)
 	if err != nil {
 		return "", fmt.Errorf("consuming otp code: %w", err)
 	}
@@ -124,7 +124,7 @@ func (s *otpService) VerifyPasswordResetCode(ctx context.Context, code string, e
 		return "", domain.NewResourceNotFoundError("the inserted code does not match", ErrInvalidOtpCode)
 	}
 
-	user, err := s.userFinder.GetByEmail(ctx, email)
+	user, err := s.otpUserFinder.GetByEmail(ctx, email)
 	if err != nil {
 		return "", fmt.Errorf("fetching user by email: %w", err)
 	}
