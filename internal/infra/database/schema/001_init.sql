@@ -19,8 +19,17 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens(
     used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS otp(
+    id UUID PRIMARY KEY,
+    identifier VARCHAR(255) UNIQUE NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- +goose Down
 DROP TABLE refresh_tokens;
 DROP TABLE password_reset_tokens;
 DROP TABLE users;
+DROP TABLE otp;

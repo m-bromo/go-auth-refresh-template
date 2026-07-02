@@ -2,77 +2,115 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/m-bromo/go-auth-template/configs"
-	"github.com/redis/go-redis/v9"
+	"github.com/m-bromo/go-auth-template/internal/domain"
+	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
 
-type RedisOtpRepository struct {
-	redisClient *redis.Client
-	otpOptions  *configs.OTP
+type SqlcOtpRepository struct {
+	querier    sqlc.Querier
+	otpOptions *configs.OTP
 }
 
-const consumeCodeMaxRetries = 3
-
-func NewRedisOtpRepository(redisClient *redis.Client, otpOptions *configs.OTP) *RedisOtpRepository {
-	return &RedisOtpRepository{
-		redisClient: redisClient,
-		otpOptions:  otpOptions,
+func NewSqlcOtpRepository(
+	querier sqlc.Querier,
+	otpOptions *configs.OTP,
+) *SqlcOtpRepository {
+	return &SqlcOtpRepository{
+		querier:    querier,
+		otpOptions: otpOptions,
 	}
 }
 
-func (r *RedisOtpRepository) SaveCode(ctx context.Context, email string, code string) error {
-	_, err := r.redisClient.Set(ctx, email, code, r.otpOptions.Duration).Result()
-	if err != nil {
-		return fmt.Errorf("saving otp code to redis: %w", err)
+func (r *SqlcOtpRepository) Save(ctx context.Context, otp *domain.OTP) error {
+	if err := r.querier.SaveOtpCode(ctx, sqlc.SaveOtpCodeParams{
+		ID:         otp.ID,
+		Identifier: otp.Identifier,
+		CodeHash:   otp.Code,
+		Attempts:   int16(otp.Attempts),
+		ExpiresAt:  otp.ExpiresAt,
+		CreatedAt:  otp.CreatedAt,
+	}); err != nil {
+		return fmt.Errorf("saving otp code: %w", err)
 	}
 
 	return nil
 }
 
-func (r *RedisOtpRepository) ConsumeCodeIfMatches(ctx context.Context, email string, code string) (bool, error) {
-	var consumed bool
-
-	for range consumeCodeMaxRetries {
-		err := r.redisClient.Watch(ctx, func(tx *redis.Tx) error {
-			storedCode, err := tx.Get(ctx, email).Result()
-			if err == redis.Nil {
-				consumed = false
-				return nil
-			}
-
-			if err != nil {
-				return err
-			}
-
-			if storedCode != code {
-				consumed = false
-				return nil
-			}
-
-			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.Del(ctx, email)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			consumed = true
-			return nil
-		}, email)
-
-		if err == redis.TxFailedErr {
-			continue
-		}
-
-		if err != nil {
-			return false, fmt.Errorf("consuming otp code from redis: %w", err)
-		}
-
-		return consumed, nil
+func (r *SqlcOtpRepository) InvalidateByIdentifier(ctx context.Context, identifier string) error {
+	if err := r.querier.InvalidateOtpCodesByIdentifier(ctx, identifier); err != nil {
+		return fmt.Errorf("invalidating otp codes by identifier: %w", err)
 	}
 
-	return false, fmt.Errorf("consuming otp code from redis: %w", redis.TxFailedErr)
+	return nil
+}
+
+func (r *SqlcOtpRepository) Consume(
+	ctx context.Context,
+	email string,
+	codeHash string,
+) (*domain.OTP, error) {
+	otp, err := r.querier.ConsumeOtpCode(ctx, sqlc.ConsumeOtpCodeParams{
+		CodeHash:   codeHash,
+		Identifier: email,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("fetching otp code: %w", err)
+	}
+
+	return &domain.OTP{
+		ID:         otp.ID,
+		Identifier: otp.Identifier,
+		Code:       otp.CodeHash,
+		ExpiresAt:  otp.ExpiresAt,
+		CreatedAt:  otp.CreatedAt,
+	}, nil
+}
+
+func (r *SqlcOtpRepository) ConsumeByChallengeID(
+	ctx context.Context,
+	challengeID uuid.UUID,
+	codeHash string,
+) (*domain.OTP, error) {
+	otp, err := r.querier.ConsumeOtpCodeByChallengeID(ctx, sqlc.ConsumeOtpCodeByChallengeIDParams{
+		ID:          challengeID,
+		CodeHash:    codeHash,
+		MaxAttempts: int16(r.otpOptions.MaxAttempts),
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("fetching otp code by challenge id: %w", err)
+	}
+
+	return &domain.OTP{
+		ID:         otp.ID,
+		Identifier: otp.Identifier,
+		Code:       otp.CodeHash,
+		Attempts:   int(otp.Attempts),
+		ExpiresAt:  otp.ExpiresAt,
+		CreatedAt:  otp.CreatedAt,
+	}, nil
+}
+
+func (r *SqlcOtpRepository) IncreaseAttempts(ctx context.Context, challengeID uuid.UUID) error {
+	if err := r.querier.IncreaseOtpAttempts(ctx, sqlc.IncreaseOtpAttemptsParams{
+		ID:          challengeID,
+		MaxAttempts: int16(r.otpOptions.MaxAttempts),
+	}); err != nil {
+		return fmt.Errorf("increasing otp attempts: %w", err)
+	}
+
+	return nil
 }

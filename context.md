@@ -12,11 +12,10 @@ This project is a Go authentication template intended to be reused as a base for
 
 - Go
 - PostgreSQL
-- Redis
 - sqlc
 - JWT access tokens
 - Refresh tokens in PostgreSQL
-- OTP codes in Redis
+- OTP codes in PostgreSQL
 
 ## Authentication Flow
 
@@ -35,7 +34,7 @@ General flow:
 6. The API creates a refresh token, stores it in PostgreSQL, and sends it as an HTTP-only cookie.
 7. Protected routes validate the JWT from the `Authorization` header.
 8. The refresh endpoint reads the refresh-token cookie, rotates the refresh token, and returns a new access token.
-9. OTP login and password-reset flows store short-lived OTP hashes in Redis.
+9. OTP login and password-reset flows store short-lived OTP hashes in PostgreSQL.
 
 ## Data Storage
 
@@ -47,12 +46,7 @@ PostgreSQL stores persistent user data:
 - username
 - refresh token ID, user ID, creation time, and expiration time
 - password reset token hashes and expiration metadata
-
-Redis stores OTP codes temporarily:
-
-- key: user email
-- value: hashed OTP code
-- expiration: configured OTP duration
+- OTP challenge ID, identifier, hashed code, attempts, and expiration time
 
 ## Project Structure
 
@@ -60,9 +54,8 @@ Redis stores OTP codes temporarily:
 - `config/`: environment-based configuration.
 - `internal/domain/`: domain models.
 - `internal/service/`: application/business logic.
-- `internal/repository/`: persistence abstractions for PostgreSQL and Redis.
+- `internal/repository/`: persistence abstractions for PostgreSQL.
 - `internal/infra/database/`: PostgreSQL connection, migrations, sqlc queries, and generated sqlc code.
-- `internal/infra/cache/`: Redis client setup.
 - `internal/web/handler/`: HTTP handlers.
 - `internal/web/middleware/`: authentication middleware.
 - `internal/web/cookie/`: refresh-token cookie helpers.
@@ -79,7 +72,7 @@ Redis stores OTP codes temporarily:
 ## Development Notes
 
 - Database queries are defined in SQL and generated with sqlc.
-- PostgreSQL and Redis are available through `docker-compose.yml`.
+- PostgreSQL is available through `docker-compose.yml`.
 - Passwords are hashed with bcrypt.
 - Refresh tokens are rotated when used.
 - Client-facing errors are wrapped through the API error layer.

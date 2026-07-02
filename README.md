@@ -1,6 +1,6 @@
 # Go Auth Refresh Template
 
-A reusable Go authentication API template with registration, login, JWT access tokens, PostgreSQL-backed refresh-token rotation, and Redis-backed OTP codes.
+A reusable Go authentication API template with registration, login, JWT access tokens, PostgreSQL-backed refresh-token rotation, and OTP codes.
 
 The project is structured around clear HTTP, service, repository, infrastructure, and domain layers so it can be used as a starting point for authenticated Go APIs.
 
@@ -10,7 +10,7 @@ The project is structured around clear HTTP, service, repository, infrastructure
 
 - Go 1.26.2 or newer
 - Docker and Docker Compose
-- PostgreSQL and Redis, either through Docker Compose or your own local services
+- PostgreSQL, either through Docker Compose or your own local service
 
 ### Configuration
 
@@ -20,10 +20,10 @@ Create a `.env` file in the repository root:
 ENVIRONMENT=development
 API_HOST=localhost
 API_PORT=8080
-SERVER_READ_HEADER_TIMEOUT=5s
-SERVER_READ_TIMEOUT=10s
-SERVER_WRITE_TIMEOUT=10s
-SERVER_IDLE_TIMEOUT=60s
+API_READ_HEADER_TIMEOUT=5s
+API_READ_TIMEOUT=10s
+API_WRITE_TIMEOUT=10s
+API_IDLE_TIMEOUT=60s
 
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
@@ -31,16 +31,13 @@ POSTGRES_NAME=postgres_db
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=password
 
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
 JWT_PRIVATE_KEY=change-me
 JWT_DURATION=15m
 REFRESH_TOKEN_DURATION=168h
 RESET_TOKEN_SECRET=change-me
 RESET_TOKEN_DURATION=10m
 OTP_MAX_VALUE=1000000
+OTP_MAX_ATTEMPTS=3
 OTP_SECRET=change-me
 OTP_DURATION=2m
 RESEND_API_KEY=
@@ -49,7 +46,7 @@ RESEND_EMAIL=example@email.com
 
 ### Run Locally
 
-Start PostgreSQL and Redis:
+Start PostgreSQL:
 
 ```bash
 make docker-up
@@ -83,7 +80,7 @@ make build
 make test
 ```
 
-The current test suite uses testcontainers for PostgreSQL and Redis, so Docker must be available when running tests.
+The current integration test suite uses testcontainers for PostgreSQL, so Docker must be available when running tests.
 
 ## API
 
@@ -133,7 +130,7 @@ Cookie: auth_cookie=<refresh-token>
 
 Consumes the current refresh token, stores a new refresh token cookie, and returns a new access token.
 
-Refresh tokens are stored in PostgreSQL and rotated on use. OTP codes are stored temporarily in Redis.
+Refresh tokens and OTP codes are stored in PostgreSQL.
 
 ### Get User Profile
 
@@ -158,7 +155,7 @@ Returns the authenticated user's profile:
 - Login with JWT access-token generation
 - Refresh tokens stored in PostgreSQL with expiration
 - Refresh-token rotation on use
-- OTP login and password-reset code storage backed by Redis
+- OTP login and password-reset code storage backed by PostgreSQL
 - HTTP-only refresh-token cookie handling
 - Protected route middleware using the `Authorization: Bearer <jwt>` header
 - PostgreSQL persistence generated through sqlc
@@ -172,14 +169,13 @@ Returns the authenticated user's profile:
 |-- config/                         Environment-based configuration
 |-- internal/client_errors/          Client-facing API error helpers
 |-- internal/domain/                 Domain models
-|-- internal/infra/cache/            Redis client setup
 |-- internal/infra/database/         PostgreSQL connection, schema, queries, migrations, sqlc output
 |-- internal/pkg/                    Shared validation and security helpers
 |-- internal/repository/             Persistence interfaces and implementations
 |-- internal/service/                Authentication, JWT, refresh-token, and user services
 |-- internal/web/                    HTTP server, routes, handlers, middleware, cookies, and models
 |-- test/                            Integration tests
-|-- docker-compose.yml               Local PostgreSQL and Redis services
+|-- docker-compose.yml               Local PostgreSQL service
 |-- makefile                         Common development commands
 `-- main.go                          Application entrypoint and dependency wiring
 ```
@@ -189,7 +185,7 @@ Returns the authenticated user's profile:
 Common commands:
 
 ```bash
-make docker-up     # Start PostgreSQL and Redis
+make docker-up     # Start PostgreSQL
 make migrate       # Apply database migrations
 make run           # Run the API
 make build         # Build the binary

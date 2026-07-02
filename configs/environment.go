@@ -16,7 +16,6 @@ type Config struct {
 	API          API
 	Postgres     Postgres
 	Jwt          Jwt
-	Redis        Redis
 	RefreshToken RefreshToken
 	ResetToken   ResetToken
 	OTP          OTP
@@ -27,10 +26,10 @@ type API struct {
 	URL               string
 	Host              string        `env:"API_HOST,default=localhost"`
 	Port              string        `env:"API_PORT,default=8080"`
-	ReadHeaderTimeout time.Duration `env:"READ_HEADER_TIMEOUT,default=5s"`
-	ReadTimeout       time.Duration `env:"READ_TIMEOUT,default=10s"`
-	WriteTimeout      time.Duration `env:"WRITE_TIMEOUT,default=10s"`
-	IdleTimeout       time.Duration `env:"IDLE_TIMEOUT,default=60s"`
+	ReadHeaderTimeout time.Duration `env:"API_READ_HEADER_TIMEOUT,default=5s"`
+	ReadTimeout       time.Duration `env:"API_READ_TIMEOUT,default=10s"`
+	WriteTimeout      time.Duration `env:"API_WRITE_TIMEOUT,default=10s"`
+	IdleTimeout       time.Duration `env:"API_IDLE_TIMEOUT,default=60s"`
 }
 
 type Postgres struct {
@@ -39,12 +38,6 @@ type Postgres struct {
 	Name     string `env:"POSTGRES_NAME,default=postgres_db"`
 	User     string `env:"POSTGRES_USER,default=admin"`
 	Password string `env:"POSTGRES_PASSWORD,default=password"`
-}
-
-type Redis struct {
-	Host     string `env:"REDIS_HOST,default=localhost"`
-	Port     string `env:"REDIS_PORT,default=6379"`
-	Password string `env:"REDIS_PASSWORD,default="`
 }
 
 type Jwt struct {
@@ -62,9 +55,10 @@ type ResetToken struct {
 }
 
 type OTP struct {
-	MaxValue int           `env:"OTP_MAX_VALUE,default=1000000"`
-	Secret   string        `env:"OTP_SECRET,default=change-me"`
-	Duration time.Duration `env:"OTP_DURATION,default=2m"`
+	MaxValue    int           `env:"OTP_MAX_VALUE,default=1000000"`
+	Secret      string        `env:"OTP_SECRET,default=change-me"`
+	Duration    time.Duration `env:"OTP_DURATION,default=2m"`
+	MaxAttempts int           `env:"OTP_MAX_ATTEMPTS,default=3"`
 }
 
 type Resend struct {

@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	ConsumeOtpCode(ctx context.Context, arg ConsumeOtpCodeParams) (Otp, error)
+	ConsumeOtpCodeByChallengeID(ctx context.Context, arg ConsumeOtpCodeByChallengeIDParams) (Otp, error)
 	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (PasswordResetToken, error)
 	ConsumeRefreshToken(ctx context.Context, id uuid.UUID) (RefreshToken, error)
 	DeletePasswordResetTokensByID(ctx context.Context, id uuid.UUID) error
@@ -21,6 +23,9 @@ type Querier interface {
 	GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (RefreshToken, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetValidPasswordResetToken(ctx context.Context, tokenHash string) (PasswordResetToken, error)
+	IncreaseOtpAttempts(ctx context.Context, arg IncreaseOtpAttemptsParams) error
+	InvalidateOtpCodesByIdentifier(ctx context.Context, identifier string) error
+	SaveOtpCode(ctx context.Context, arg SaveOtpCodeParams) error
 	SavePasswordResetToken(ctx context.Context, arg SavePasswordResetTokenParams) error
 	SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error
 	SaveUser(ctx context.Context, arg SaveUserParams) error

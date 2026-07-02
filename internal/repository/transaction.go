@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/m-bromo/go-auth-template/configs"
 	"github.com/m-bromo/go-auth-template/internal/domain"
 	"github.com/m-bromo/go-auth-template/internal/infra/database/sqlc"
 )
@@ -28,24 +29,33 @@ type RefreshTokenTransactionRepository interface {
 	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
 }
 
+type OTPTransactionRepository interface {
+	InvalidateByIdentifier(ctx context.Context, identifier string) error
+	Save(ctx context.Context, otp *domain.OTP) error
+}
+
 type Repositories struct {
 	UserRepository         UserTransactionRepository
 	ResetTokenRepository   ResetTokenTransactionRepository
 	RefreshTokenRepository RefreshTokenTransactionRepository
+	OTPRepository          OTPTransactionRepository
 }
 
 type unitOfWork struct {
-	db      *sql.DB
-	queries *sqlc.Queries
+	db         *sql.DB
+	queries    *sqlc.Queries
+	otpOptions *configs.OTP
 }
 
 func NewUnitOfWork(
 	db *sql.DB,
 	queries *sqlc.Queries,
+	otpOptions *configs.OTP,
 ) UnitOfWork {
 	return &unitOfWork{
-		db:      db,
-		queries: queries,
+		db:         db,
+		queries:    queries,
+		otpOptions: otpOptions,
 	}
 }
 
@@ -62,6 +72,7 @@ func (u *unitOfWork) Exec(ctx context.Context, fn func(repos Repositories) error
 		RefreshTokenRepository: NewSqlcRefreshTokenRepository(qtx),
 		UserRepository:         NewSqlcUserRepository(qtx),
 		ResetTokenRepository:   NewSqlcResetTokenRepository(qtx),
+		OTPRepository:          NewSqlcOtpRepository(qtx, u.otpOptions),
 	}
 
 	if err := fn(repos); err != nil {

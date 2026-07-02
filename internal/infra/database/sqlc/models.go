@@ -11,6 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type Otp struct {
+	ID         uuid.UUID
+	Identifier string
+	CodeHash   string
+	Attempts   int16
+	ExpiresAt  time.Time
+	CreatedAt  time.Time
+}
+
 type PasswordResetToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID

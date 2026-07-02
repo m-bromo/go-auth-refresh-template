@@ -1,5 +1,7 @@
 package models
 
+import "github.com/google/uuid"
+
 type RegisterUserPayload struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6,containsany=!@#$%&?"`
@@ -20,6 +22,11 @@ type VerifyOTPPayload struct {
 	Code  string `json:"code" validate:"required"`
 }
 
+type VerifyPasswordResetCodePayload struct {
+	ChallengeID uuid.UUID `json:"challenge_id" validate:"required"`
+	Code        string    `json:"code" validate:"required"`
+}
+
 type ResetPasswordPayload struct {
 	Password   string `json:"password" validate:"required,min=6,containsany=!@#$%&?"`
 	ResetToken string `json:"reset_token" validate:"required"`
@@ -36,4 +43,8 @@ type GetProfilePayload struct {
 
 type VerifyOTPResponse struct {
 	ResetToken string `json:"reset_token"`
+}
+
+type SendOTPResponse struct {
+	ChallengeID uuid.UUID `json:"challenge_id"`
 }

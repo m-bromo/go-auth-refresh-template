@@ -86,8 +86,12 @@ paths:
             example:
               email: user@example.com
       responses:
-        "204":
-          description: OTP send request accepted. Unknown emails also return 204 to avoid account enumeration.
+        "200":
+          description: OTP send request accepted. Unknown emails also receive a challenge ID to avoid account enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendOTPResponse"
         "400":
           $ref: "#/components/responses/ValidationError"
         "500":
@@ -160,9 +164,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/VerifyOTPPayload"
+              $ref: "#/components/schemas/VerifyPasswordResetCodePayload"
             example:
-              email: user@example.com
+              challenge_id: 4af5e9f8-5e67-4f67-a2c7-df0fc5f6ce45
               code: "123456"
       responses:
         "200":
@@ -327,6 +331,19 @@ components:
         code:
           type: string
           example: "123456"
+    VerifyPasswordResetCodePayload:
+      type: object
+      required:
+        - challenge_id
+        - code
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+          example: 4af5e9f8-5e67-4f67-a2c7-df0fc5f6ce45
+        code:
+          type: string
+          example: "123456"
     ResetPasswordPayload:
       type: object
       required:
@@ -370,6 +387,15 @@ components:
         reset_token:
           type: string
           example: reset-token
+    SendOTPResponse:
+      type: object
+      required:
+        - challenge_id
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+          example: 4af5e9f8-5e67-4f67-a2c7-df0fc5f6ce45
     ClientError:
       type: object
       required:

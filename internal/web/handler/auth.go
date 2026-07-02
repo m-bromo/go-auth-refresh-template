@@ -98,12 +98,17 @@ func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.otpService.SendCode(r.Context(), payload.Email); err != nil {
+	challengeID, err := h.otpService.SendCode(r.Context(), payload.Email)
+	if err != nil {
 		HandleError(w, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	response := models.SendOTPResponse{
+		ChallengeID: challengeID,
+	}
+
+	HandleJSON(w, http.StatusOK, response)
 }
 
 func (h *AuthHandler) LoginWithOtp(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +175,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) VerifyPasswordResetCode(w http.ResponseWriter, r *http.Request) {
-	var payload models.VerifyOTPPayload
+	var payload models.VerifyPasswordResetCodePayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		HandleError(w, clienterrors.NewBadRequestError("invalid request body", err))
 		return
@@ -181,7 +186,7 @@ func (h *AuthHandler) VerifyPasswordResetCode(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	resetToken, err := h.otpService.VerifyPasswordResetCode(r.Context(), payload.Code, payload.Email)
+	resetToken, err := h.otpService.VerifyPasswordResetCode(r.Context(), payload.Code, payload.ChallengeID)
 	if err != nil {
 		HandleError(w, err)
 		return
